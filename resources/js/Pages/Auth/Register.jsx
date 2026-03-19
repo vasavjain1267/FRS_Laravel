@@ -4,7 +4,7 @@ import { GraduationCap, Lock, Mail, Eye, EyeOff, Loader2, UserPlus, ArrowLeft, U
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
-import { toast } from "sonner"; 
+import ToastListener from "@/Components/ToastListener";
 
 export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
@@ -18,25 +18,16 @@ export default function Register() {
 
     const submit = (e) => {
         e.preventDefault();
+        
         post(route('register'), {
-            onSuccess: () => {
-                toast.success("Account Created Successfully!", {
-                    description: "Welcome to the IIT Indore Applicant Portal.",
-                    duration: 4000,
-                });
-            },
-            onError: () => {
-                toast.error("Registration Failed", {
-                    description: "Please check the highlighted form fields and try again.",
-                    duration: 5000,
-                });
-            },
+            preserveScroll: true,
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
 
     return (
         <div className="flex min-h-screen bg-white">
+            <ToastListener />
             <Head title="Register" />
 
             {/* Left Panel - Branding Area */}

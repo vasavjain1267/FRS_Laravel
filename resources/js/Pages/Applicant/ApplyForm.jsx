@@ -1,107 +1,224 @@
-import { Head, useForm, Link } from '@inertiajs/react';
+import { useState } from "react";
+import { Head, useForm, router } from "@inertiajs/react";
+import { Card, CardContent } from "@/Components/ui/card";
 import { Button } from "@/Components/ui/button";
-import { Label } from "@/Components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/Components/ui/card";
-import { FileText, BookOpen, Send, ArrowLeft, Loader2, GraduationCap } from "lucide-react";
-import ApplicantLayout from '@/Layouts/ApplicantLayout';
+import { User, Briefcase, GraduationCap, FileText, Save, ArrowRight, ArrowLeft, CheckCircle2, Building2 } from "lucide-react";
+import ApplicantLayout from "@/Layouts/ApplicantLayout";
+import ToastListener from "@/Components/ToastListener";
+import { toast } from "sonner";
 
-export default function ApplyForm({ job }) {
+import Step1Position from "./Steps/Step1Position";
+import Step2Personal from "./Steps/Step2Personal";
+import Step3Education from "./Steps/Step3Education";
+import Step4Employment from "./Steps/Step4Employment";
+
+const STEPS = [
+    { id: 1, title: "Position Details", icon: Building2 },
+    { id: 2, title: "Personal Information", icon: User },
+    { id: 3, title: "Education History", icon: GraduationCap },
+    { id: 4, title: "Employment & Experience", icon: Briefcase },
+    { id: 5, title: "Documents & Submit", icon: FileText },
+];
+
+export default function ApplyForm({ advertisement, existingDraft, existingDepartment, existingGrade }) {
+    
+    const [currentStep, setCurrentStep] = useState(existingDraft?.current_step || 1);
+    const [localErrors, setLocalErrors] = useState({});
+
     const { data, setData, post, processing, errors } = useForm({
-        sop: '',
-        research_interest: '',
+        department: existingDepartment || "",
+        grade: existingGrade || "",
+        form_data: existingDraft || {
+            current_step: 1,
+            personal_details: {
+                first_name: "", last_name: "", dob: "", gender: "", phone: "",
+            },
+            education: {},
+            employment: {},
+        },
     });
 
-    const submit = (e) => {
+const updateFormData = (section, field, value) => {
+        // FIX: Using the callback version of setData (prev => ...) ensures 
+        // that rapid sequential updates in loops don't overwrite each other!
+        setData(prevData => ({
+            ...prevData,
+            form_data: {
+                ...prevData.form_data,
+                [section]: {
+                    ...prevData.form_data[section],
+                    [field]: value,
+                },
+            },
+        }));
+    };
+
+    const saveDraftQuietly = (showToast = false, stepToSave = currentStep) => {
+        const payload = {
+            department: data.department,
+            grade: data.grade,
+            form_data: { ...data.form_data, current_step: stepToSave },
+        };
+
+        router.post(route("applicant.draft", advertisement.id), payload, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setData("form_data", payload.form_data);
+                if (showToast) toast.success("Draft saved successfully! You can safely leave and return later.");
+            },
+        });
+    };
+
+    // --- THE GATEKEEPER ---
+    const validateStep = (step) => {
+        let isValid = true;
+        let newErrors = {};
+
+        if (step === 1) {
+            if (!data.department) { newErrors.department = "Required"; isValid = false; }
+            if (!data.grade) { newErrors.grade = "Required"; isValid = false; }
+        }
+
+        if (step === 2) {
+            const p = data.form_data.personal_details || {};
+            if (!p.first_name) { newErrors.first_name = "Required"; isValid = false; }
+            if (!p.last_name) { newErrors.last_name = "Required"; isValid = false; }
+            if (!p.dob) { newErrors.dob = "Required"; isValid = false; }
+            if (!p.gender) { newErrors.gender = "Required"; isValid = false; }
+            if (!p.category) { newErrors.category = "Required"; isValid = false; }
+            if (!p.nationality) { newErrors.nationality = "Required"; isValid = false; }
+            if (!p.email) { newErrors.email = "Required"; isValid = false; }
+            if (!p.phone || p.phone.length < 10) { newErrors.phone = "10-digit number required"; isValid = false; }
+        }
+
+        if (step === 3) {
+            const phd = data.form_data.education?.phd || {};
+            if (!phd.university) { newErrors['phd.university'] = "Required"; isValid = false; }
+            if (!phd.department) { newErrors['phd.department'] = "Required"; isValid = false; }
+            if (!phd.year_joining) { newErrors['phd.year_joining'] = "Required"; isValid = false; }
+        }
+
+        setLocalErrors(newErrors);
+        if (!isValid) toast.error("Please fill all required fields before proceeding.");
+        return isValid;
+    };
+
+    const handleNext = () => {
+        if (!validateStep(currentStep)) return; // Block moving forward if invalid!
+        setLocalErrors({});
+        
+        const nextStep = Math.min(currentStep + 1, STEPS.length);
+        setCurrentStep(nextStep);
+        saveDraftQuietly(false, nextStep); 
+    };
+
+    const handlePrev = () => {
+        setLocalErrors({});
+        const prevStep = Math.max(currentStep - 1, 1);
+        setCurrentStep(prevStep);
+        saveDraftQuietly(false, prevStep); 
+    };
+
+    const submitFinal = (e) => {
         e.preventDefault();
-        post(route('jobs.apply.submit', job.id));
+        post(route("applicant.store", advertisement.id));
+    };
+
+    const renderCurrentStep = () => {
+        switch (currentStep) {
+            case 1: return <Step1Position data={data} setData={setData} localErrors={localErrors} advertisement={advertisement} />;
+            case 2: return <Step2Personal data={data} updateFormData={updateFormData} localErrors={localErrors} />;
+            case 3: return <Step3Education data={data} setData={setData} localErrors={localErrors} />;
+            case 4: return <Step4Employment data={data} setData={setData} localErrors={localErrors} />;
+            default:
+                return (
+                    <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in">
+                        <FileText className="h-16 w-16 text-slate-200 mb-4" />
+                        <h3 className="text-xl font-bold text-slate-900">More sections coming soon!</h3>
+                    </div>
+                );
+        }
     };
 
     return (
         <ApplicantLayout>
-            <Head title={`Apply - ${job.title}`} />
+            <ToastListener />
+            <Head title={`Apply - ${advertisement.reference_number}`} />
 
-            <div className="max-w-4xl mx-auto py-10 px-6">
-                <Link 
-                    href={route('dashboard')}
-                    className="flex items-center text-slate-500 hover:text-slate-900 mb-6 transition-colors font-medium"
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-                </Link>
-
-                <div className="mb-10 p-6 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-3xl font-serif font-bold">Application for Faculty Position</h1>
-                        <p className="text-blue-100 mt-1 flex items-center gap-2">
-                            <GraduationCap className="h-5 w-5" /> {job.title} | {job.department}
-                        </p>
+            <div className="bg-slate-900 py-8 px-6">
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase mb-2">
+                        Ref: {advertisement.reference_number}
                     </div>
-                    <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-lg border border-white/20 text-sm">
-                        Ref: #IITI-{job.id}
+                    <h1 className="text-2xl font-serif font-bold text-white sm:text-3xl">Application Wizard</h1>
+                </div>
+            </div>
+
+            <div className="max-w-6xl mx-auto px-4 py-8">
+                <div className="flex flex-col md:flex-row gap-8">
+                    <div className="w-full md:w-64 shrink-0">
+                        <div className="sticky top-8 space-y-2">
+                            {STEPS.map((step) => {
+                                const isActive = currentStep === step.id;
+                                const isCompleted = currentStep > step.id;
+
+                                return (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => {
+                                            if (step.id > currentStep && !validateStep(currentStep)) return; 
+                                            setCurrentStep(step.id);
+                                            saveDraftQuietly(false, step.id);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                                            isActive ? "bg-blue-600 text-white shadow-md" : 
+                                            isCompleted ? "bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200" : 
+                                            "bg-slate-50 text-slate-400 cursor-not-allowed"
+                                        }`}
+                                        disabled={!isActive && !isCompleted && step.id > currentStep}
+                                    >
+                                        <step.icon className={`h-5 w-5 ${isActive ? "text-white" : isCompleted ? "text-blue-600" : "text-slate-400"}`} />
+                                        <span className={`text-sm font-bold ${isActive ? "text-white" : "text-slate-700"}`}>{step.title}</span>
+                                        {isCompleted && <CheckCircle2 className="h-4 w-4 ml-auto text-green-500" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex-1">
+                        <Card className="shadow-lg border-none ring-1 ring-slate-200">
+                            <CardContent className="p-8 min-h-[400px]">
+                                {renderCurrentStep()}
+                            </CardContent>
+
+                            <div className="bg-slate-50 p-6 border-t border-slate-100 flex items-center justify-between rounded-b-lg">
+                                <div>
+                                    <Button variant="outline" onClick={() => saveDraftQuietly(true, currentStep)} className="font-bold text-slate-600 border-slate-300 hover:bg-slate-100">
+                                        <Save className="mr-2 h-4 w-4" /> Save Draft & Exit
+                                    </Button>
+                                </div>
+                                <div className="flex gap-3">
+                                    {currentStep > 1 && (
+                                        <Button variant="outline" onClick={handlePrev} className="font-bold">
+                                            <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+                                        </Button>
+                                    )}
+                                    {currentStep < STEPS.length ? (
+                                        <Button onClick={handleNext} className="bg-blue-600 text-white font-bold hover:bg-blue-700">
+                                            Save & Continue <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    ) : (
+                                        <Button onClick={submitFinal} disabled={processing} className="bg-emerald-600 text-white font-bold hover:bg-emerald-700">
+                                            Submit Final Application <CheckCircle2 className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
                     </div>
                 </div>
-
-                <form onSubmit={submit} className="space-y-8">
-                    {/* Section 1: Statement of Purpose */}
-                    <Card className="shadow-sm border-slate-200 overflow-hidden">
-                        <CardHeader className="border-b bg-slate-50/50 p-6">
-                            <div className="flex items-center gap-2 text-blue-600">
-                                <FileText className="h-5 w-5" />
-                                <CardTitle className="text-lg font-bold">Statement of Purpose (SOP)</CardTitle>
-                            </div>
-                            <CardDescription className="font-medium text-slate-500">
-                                Describe your research/teaching philosophy and why you are interested in IIT Indore.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            <textarea
-                                value={data.sop}
-                                onChange={e => setData('sop', e.target.value)}
-                                className={`w-full min-h-[350px] p-4 rounded-xl border bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none transition-all duration-200 leading-relaxed text-slate-700 ${errors.sop ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
-                                placeholder="Write your comprehensive SOP here..."
-                            />
-                            {errors.sop && <p className="text-sm font-bold text-red-600 mt-2">{errors.sop}</p>}
-                        </CardContent>
-                    </Card>
-
-                    {/* Section 2: Research Interests */}
-                    <Card className="shadow-sm border-slate-200 overflow-hidden">
-                        <CardHeader className="border-b bg-slate-50/50 p-6">
-                            <div className="flex items-center gap-2 text-blue-600">
-                                <BookOpen className="h-5 w-5" />
-                                <CardTitle className="text-lg font-bold">Future Research Interests</CardTitle>
-                            </div>
-                            <CardDescription className="font-medium text-slate-500">
-                                Outline the research areas you intend to develop at the Institute.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            <textarea
-                                value={data.research_interest}
-                                onChange={e => setData('research_interest', e.target.value)}
-                                className={`w-full min-h-[180px] p-4 rounded-xl border bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 outline-none transition-all duration-200 leading-relaxed text-slate-700 ${errors.research_interest ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
-                                placeholder="Summarize your research vision..."
-                            />
-                            {errors.research_interest && <p className="text-sm font-bold text-red-600 mt-2">{errors.research_interest}</p>}
-                        </CardContent>
-                    </Card>
-
-                    <div className="flex items-center justify-between p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                        <p className="text-sm text-slate-500 font-medium max-w-md">
-                            By submitting, you confirm that all information provided is accurate and corresponds to the official recruitment guidelines of IIT Indore.
-                        </p>
-                        <Button 
-                            disabled={processing} 
-                            type="submit" 
-                            className="bg-blue-600 text-white font-bold h-12 px-10 shadow-lg shadow-blue-600/30 hover:bg-blue-700 hover:shadow-blue-600/40 transition-all text-base"
-                        >
-                            {processing ? (
-                                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</>
-                            ) : (
-                                <><Send className="mr-2 h-4 w-4" /> Submit Application</>
-                            )}
-                        </Button>
-                    </div>
-                </form>
             </div>
         </ApplicantLayout>
     );

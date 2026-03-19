@@ -37,17 +37,18 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-$user = User::create([
-    'name' => $request->name,
-    'email' => $request->email,
-    'password' => Hash::make($request->password),
-    'role' => 'applicant', // Hardcode this to ensure new signups are always applicants
-]);
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'applicant', 
+        ]);
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('dashboard', absolute: false))
+            ->with('success', 'Account created successfully! Welcome to the portal.');
     }
 }

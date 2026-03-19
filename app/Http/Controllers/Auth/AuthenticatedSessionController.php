@@ -34,16 +34,25 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
         $attemptedRole = $request->input('role');
 
-        // Check if user is logging into the correct portal
-        if ($user->role !== $attemptedRole) {
-
+        if ($attemptedRole === 'admin' && ! str_ends_with($user->email, '@iiti.ac.in')) {
             Auth::logout();
-
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'email' => "Unauthorized access. You cannot log in to the " . ucfirst($attemptedRole) . " portal with these credentials."
+                'email' => 'Unauthorized access. Institute login strictly requires an @iiti.ac.in email address.',
+            ]);
+        }
+
+        // Check if user is logging into the correct portal
+        if ($user->role !== $attemptedRole) {
+
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => 'Unauthorized access. You cannot log in to the '.ucfirst($attemptedRole).' portal with these credentials.',
             ]);
         }
 
@@ -54,16 +63,15 @@ class AuthenticatedSessionController extends Controller
          * Redirect user based on role
          */
         switch ($user->role) {
-
             case 'admin':
-                return redirect()->route('jobs.create');
+                return redirect()->route('jobs.create')->with('success', 'Login successful! Welcome to the Admin portal.');
 
             case 'hod':
-                return redirect('/hod/dashboard');
+                return redirect('/hod/dashboard')->with('success', 'Login successful! Welcome to the HOD portal.');
 
             case 'applicant':
             default:
-                return redirect()->route('dashboard');
+                return redirect()->route('dashboard')->with('success', 'Login successful! Welcome to your dashboard.');
         }
     }
 

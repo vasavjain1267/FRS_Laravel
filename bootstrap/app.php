@@ -3,7 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\CheckRole; // Add this import
+use App\Http\Middleware\CheckRole;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,7 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         
-        // Register our custom role middleware alias
+        // 1. Reconnect Inertia! This tells Laravel to append the Inertia data 
+        // (including flash messages and errors) to every single web request.
+        $middleware->web(append: [
+            \App\Http\Middleware\HandleInertiaRequests::class,
+        ]);
+
+        // 2. Keep your custom role middleware alias intact
         $middleware->alias([
             'role' => CheckRole::class,
         ]);

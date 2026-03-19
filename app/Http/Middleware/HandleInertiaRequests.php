@@ -34,10 +34,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            // This ensures 'flash' is always available in React props
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
                 'error' => fn () => $request->session()->get('error'),
+                'success' => fn () => $request->session()->get('success'), 
             ],
         ];
     }

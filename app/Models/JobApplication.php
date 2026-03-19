@@ -2,31 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class JobApplication extends Model
 {
-    // Add this property to allow these fields to be filled via create()
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
-        'job_opening_id',
+        'advertisement_id',
+        'department',
+        'grade',
+        'form_data', 
+        'sop',
+        'research_interest',
         'status',
     ];
 
-    /**
-     * Relationship: An application belongs to a user (applicant).
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Relationship: An application belongs to a specific job opening.
-     */
-    public function jobOpening(): BelongsTo
-    {
-        return $this->belongsTo(JobOpening::class);
-    }
+    // This tells Laravel to automatically convert the JSON string
+    // from the database into a usable Array/Object in our code.
+    protected $casts = [
+        'form_data' => 'array',
+    ];
 }

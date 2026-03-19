@@ -2,74 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\JobOpening;
+use App\Models\Advertisement;
 use App\Models\JobApplication;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class JobOpeningController extends Controller
 {
     /**
-     * Display active job openings.
+     * Display active advertisements on the dashboard.
      */
     public function index()
     {
-        $jobs = JobOpening::where('is_active', true)->latest()->get();
-        
-        $appliedJobIds = Auth::check() 
-            ? JobApplication::where('user_id', Auth::id())->pluck('job_opening_id')->toArray()
-            : [];
+        $advertisements = Advertisement::where('is_active', true)->latest()->get();
 
-        return Inertia::render('Dashboard', [
-            'jobs' => $jobs,
-            'appliedJobIds' => $appliedJobIds
-        ]);
-    }
+        $submittedAdvtIds = [];
+        $draftAdvtIds = [];
 
-    /**
-     * Show the long-form application page.
-     */
-    public function showApplyForm(JobOpening $job)
-    {
-        // Check if already applied to prevent manual URL access
-        $hasApplied = JobApplication::where('user_id', Auth::id())
-            ->where('job_opening_id', $job->id)
-            ->exists();
+        if (Auth::check()) {
+            // Fetch all applications for this user and look at their status
+            $applications = JobApplication::where('user_id', Auth::id())
+                ->get(['advertisement_id', 'status']);
 
-        if ($hasApplied) {
-            return redirect()->route('dashboard')->with('error', 'You have already submitted an application for this position.');
+            foreach ($applications as $app) {
+                if ($app->status === 'submitted') {
+                    $submittedAdvtIds[] = $app->advertisement_id;
+                } elseif ($app->status === 'draft') {
+                    $draftAdvtIds[] = $app->advertisement_id;
+                }
+            }
         }
 
-        return Inertia::render('Applicant/ApplyForm', [
-            'job' => $job
+        return Inertia::render('Dashboard', [
+            'advertisements' => $advertisements,
+            'submittedAdvtIds' => $submittedAdvtIds,
+            'draftAdvtIds' => $draftAdvtIds,
         ]);
     }
 
     /**
-     * Handle the complex application submission.
-     */
-    public function submitApplication(Request $request, JobOpening $job)
-    {
-        $validated = $request->validate([
-            'sop' => 'required|string|min:100',
-            'research_interest' => 'required|string|min:50',
-            // Future fields: 'cv_path' => 'required|file|mimes:pdf|max:2048',
-        ]);
-
-        JobApplication::create([
-            'user_id' => Auth::id(),
-            'job_opening_id' => $job->id,
-            'sop' => $validated['sop'],
-            'research_interest' => $validated['research_interest'],
-            'status' => 'pending'
-        ]);
-
-        return redirect()->route('dashboard')->with('status', 'Application for ' . $job->title . ' submitted successfully!');
-    }
-
-    /**
-     * Admin: Create Job View
+     * Admin: Create Advertisement View
      */
     public function create()
     {
@@ -77,19 +50,109 @@ class JobOpeningController extends Controller
     }
 
     /**
-     * Admin: Store Job
+     * Admin: Store Advertisement & Upload PDF
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'reference_number' => 'required|string|unique:advertisements,reference_number',
             'title' => 'required|string|max:255',
-            'department' => 'required|string|max:255',
-            'description_and_criteria' => 'required|string',
             'deadline' => 'required|date',
+            'document' => 'required|file|mimes:pdf|max:5120',
+
+            // 1. Must be an array with at least one department
+            'departments' => 'required|array|min:1',
+
+            // 2. THE FIX: Every department inside the array MUST have at least one grade!
+            'departments.*' => 'required|array|min:1',
+        ], [
+            // Custom error message so the Admin understands what went wrong
+            'departments.*.min' => 'Every selected department must have at least one grade assigned to it.',
         ]);
 
-        JobOpening::create($validated);
+        $filePath = $request->file('document')->store('advertisements', 'public');
 
-        return redirect()->route('jobs.create')->with('status', 'Job Opening published successfully!');
+        Advertisement::create([
+            'reference_number' => $validated['reference_number'],
+            'title' => $validated['title'],
+            'deadline' => $validated['deadline'],
+            'departments' => $validated['departments'],
+            'document_path' => $filePath,
+        ]);
+
+        return redirect()->route('jobs.create')->with('success', 'Advertisement published successfully!');
+    }
+
+    /**
+     * Show the long-form application wizard.
+     */
+    public function showApplyForm(Advertisement $advertisement)
+    {
+        // Check if they already have an application started or submitted
+        $application = JobApplication::where('user_id', Auth::id())
+            ->where('advertisement_id', $advertisement->id)
+            ->first();
+
+        // If they already submitted it fully, kick them back to the dashboard
+        if ($application && $application->status === 'submitted') {
+            return redirect()->route('dashboard')->with('error', 'You have already submitted an application for this advertisement.');
+        }
+
+        return Inertia::render('Applicant/ApplyForm', [
+            'advertisement' => $advertisement,
+            // Pass the existing draft data to React so they can resume where they left off!
+            'existingDraft' => $application ? $application->form_data : null,
+            'existingDepartment' => $application ? $application->department : '',
+            'existingGrade' => $application ? $application->grade : '',
+        ]);
+    }
+
+    /**
+     * SAVE AS DRAFT: Handles partial saves without strict validation
+     */
+    public function saveDraft(Request $request, Advertisement $advertisement)
+    {
+        JobApplication::updateOrCreate(
+            [
+                'user_id' => Auth::id(),
+                'advertisement_id' => $advertisement->id,
+            ],
+            [
+                'department' => $request->input('department', ''),
+                'grade' => $request->input('grade', ''),
+                'form_data' => $request->input('form_data', []),
+                'status' => 'draft',
+            ]
+        );
+
+        return redirect()->back();
+    }
+
+    /**
+     * FINAL SUBMIT: Handles the final lock-in of the application
+     */
+    public function submitApplication(Request $request, Advertisement $advertisement)
+    {
+        // Only run strict validation when they actually hit "Submit Application"
+        $validated = $request->validate([
+            'department' => 'required|string',
+            'grade' => 'required|string',
+            'form_data' => 'required|array',
+        ]);
+
+        JobApplication::updateOrCreate(
+            [
+                'user_id' => Auth::id(),
+                'advertisement_id' => $advertisement->id,
+            ],
+            [
+                'department' => $validated['department'],
+                'grade' => $validated['grade'],
+                'form_data' => $validated['form_data'],
+                'status' => 'submitted', 
+            ]
+        );
+
+        return redirect()->route('dashboard')->with('success', 'Your application has been submitted successfully!');
     }
 }
