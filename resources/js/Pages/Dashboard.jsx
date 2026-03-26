@@ -19,7 +19,6 @@ import {
     Clock,
 } from "lucide-react";
 import ApplicantLayout from "@/Layouts/ApplicantLayout";
-import ToastListener from "@/Components/ToastListener";
 
 export default function Dashboard({
     advertisements = [],
@@ -28,7 +27,6 @@ export default function Dashboard({
 }) {
     return (
         <ApplicantLayout>
-            <ToastListener />
             <Head title="Applicant Dashboard" />
 
             <div className="bg-slate-900 py-12 px-6 relative overflow-hidden">

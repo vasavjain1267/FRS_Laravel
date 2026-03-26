@@ -1,9 +1,8 @@
 import { Label } from "@/Components/ui/label";
 import { Input } from "@/Components/ui/input";
 import { Button } from "@/Components/ui/button";
-import { Copy } from "lucide-react";
-import { usePage } from "@inertiajs/react";
-import { useEffect, useRef } from "react";
+import { Copy, Upload, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Step2Personal({
     data,
@@ -12,86 +11,49 @@ export default function Step2Personal({
     localErrors = {},
 }) {
     const p = data.form_data?.personal_details || {};
+    const [preview, setPreview] = useState(null);
+    const [imageError, setImageError] = useState("");
 
-    // Grab the user and their nested master profile from Inertia
-    const { auth } = usePage().props;
-    const user = auth?.user || {};
-    const profile = user.applicant_profile || {};
-    const initialized = useRef(false);
+    // Set initial preview based on parent data
     useEffect(() => {
-        // If the application draft is completely empty (no email), load from master profile
-        if (!initialized.current && !p.email && user.email && setData) {
-            const nameParts = (user.name || "").split(" ");
-
-            // Extract ID Type and Number (e.g., from "AADHAR: 123456")
-            let idType = "";
-            let idNum = "";
-            if (profile.id_proof && profile.id_proof.includes(":")) {
-                const parts = profile.id_proof.split(":");
-                idType = parts[0].trim();
-                idNum = parts[1] ? parts[1].trim() : "";
-            }
-
-            // Bulk update the entire personal details section at once
-            setData("form_data", {
-                ...data.form_data,
-                personal_details: {
-                    ...(data.form_data?.personal_details || {}),
-                    first_name: nameParts[0] || "",
-                    last_name: nameParts.slice(1).join(" ") || "",
-                    email: user.email || "",
-                    fathers_name: profile.father_name || "",
-                    dob: profile.date_of_birth || "",
-                    gender: profile.gender || "",
-                    marital_status: profile.marital_status || "",
-                    category: profile.category || "",
-                    nationality: profile.nationality || "Indian",
-                    id_proof_type: idType,
-                    id_proof_number: idNum,
-                    alt_email: profile.alt_email || "",
-                    phone: profile.phone || "",
-                    alt_phone: profile.alt_phone || "",
-                    corr_address: profile.corr_address || "",
-                    corr_city: profile.corr_city || "",
-                    corr_state: profile.corr_state || "",
-                    corr_pincode: profile.corr_pincode || "",
-                    corr_country: profile.corr_country || "India",
-                    perm_address: profile.perm_address || "",
-                    perm_city: profile.perm_city || "",
-                    perm_state: profile.perm_state || "",
-                    perm_pincode: profile.perm_pincode || "",
-                    perm_country: profile.perm_country || "India",
-                },
-            });
-            initialized.current = true;
+        if (p.profile_image instanceof File) {
+            setPreview(URL.createObjectURL(p.profile_image));
+        } else if (typeof p.profile_image === "string" && p.profile_image) {
+            // Check if it's already a full path or needs prefix
+            const path = p.profile_image.startsWith("http")
+                ? p.profile_image
+                : `/storage/${p.profile_image}`;
+            setPreview(path);
+        } else {
+            setPreview(null);
         }
-    }, [p.email, user, profile, data.form_data, setData]);
+    }, [p.profile_image]);
 
     // Copy Address Logic
     const copyAddress = () => {
-        if (setData) {
-            // Bulk update is safer for React state batching
-            setData("form_data", {
-                ...data.form_data,
-                personal_details: {
-                    ...p,
-                    perm_address: p.corr_address || "",
-                    perm_city: p.corr_city || "",
-                    perm_state: p.corr_state || "",
-                    perm_country: p.corr_country || "",
-                    perm_pincode: p.corr_pincode || "",
-                },
-            });
-        } else {
-            // Fallback if setData somehow isn't passed
-            const fields = ["address", "city", "state", "country", "pincode"];
-            fields.forEach((field) => {
-                updateFormData(
-                    "personal_details",
-                    `perm_${field}`,
-                    p[`corr_${field}`] || "",
-                );
-            });
+        setData("form_data", {
+            ...data.form_data,
+            personal_details: {
+                ...p,
+                perm_address: p.corr_address || "",
+                perm_city: p.corr_city || "",
+                perm_state: p.corr_state || "",
+                perm_country: p.corr_country || "",
+                perm_pincode: p.corr_pincode || "",
+            },
+        });
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        setImageError("");
+        if (file) {
+            if (file.size > 2097152) {
+                setImageError("Image size must be less than 2MB.");
+                return;
+            }
+            setPreview(URL.createObjectURL(file));
+            updateFormData("personal_details", "profile_image", file);
         }
     };
 
@@ -105,6 +67,53 @@ export default function Step2Personal({
                     Please provide your complete demographic and contact
                     information.
                 </p>
+            </div>
+
+            {/* Application Profile Picture Section */}
+            <div className="space-y-4">
+                <h4 className="font-bold text-lg text-slate-800 border-b pb-2">
+                    Application Photo
+                </h4>
+                <div className="flex items-center gap-x-6">
+                    <div className="h-24 w-24 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden object-cover">
+                        {preview ? (
+                            <img
+                                src={preview}
+                                alt="Profile Preview"
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <User className="h-12 w-12 text-slate-400" />
+                        )}
+                    </div>
+                    <div>
+                        <Label
+                            htmlFor="profile_image"
+                            className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"
+                        >
+                            <span className="flex items-center gap-2 border border-slate-300 px-4 py-2 rounded-lg shadow-sm text-sm">
+                                <Upload className="h-4 w-4" />
+                                Upload Photo
+                            </span>
+                            <Input
+                                id="profile_image"
+                                type="file"
+                                className="sr-only"
+                                accept="image/jpeg, image/png, image/jpg"
+                                onChange={handleImageChange}
+                            />
+                        </Label>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                            JPG, PNG up to 2MB.
+                        </p>
+
+                        {(imageError || localErrors.profile_image) && (
+                            <p className="mt-1 text-sm text-red-600 font-medium">
+                                {imageError || localErrors.profile_image}
+                            </p>
+                        )}
+                    </div>
+                </div>
             </div>
 
             <div className="space-y-4">

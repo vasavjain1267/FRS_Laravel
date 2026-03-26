@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head, useForm, router } from "@inertiajs/react";
+import { Head, useForm, router, usePage } from "@inertiajs/react";
 import { Card, CardContent } from "@/Components/ui/card";
 import { Button } from "@/Components/ui/button";
 import {
@@ -21,7 +21,6 @@ import {
     Users,
 } from "lucide-react";
 import ApplicantLayout from "@/Layouts/ApplicantLayout";
-import ToastListener from "@/Components/ToastListener";
 import { toast } from "sonner";
 
 import Step1Position from "./Steps/Step1Position";
@@ -49,16 +48,23 @@ const STEPS = [
     { id: 10, title: "Referees", icon: Users },
     { id: 11, title: "Documents & Submit", icon: UploadCloud },
 ];
+
 export default function ApplyForm({
     advertisement,
     existingDraft,
     existingDepartment,
     existingGrade,
 }) {
+    const { auth } = usePage().props;
+    const user = auth?.user || {};
+    const profile = user.applicant_profile || {};
+
     const [currentStep, setCurrentStep] = useState(
-        existingDraft?.current_step || 1,
+        existingDraft?.current_step ? Number(existingDraft.current_step) : 1,
     );
     const [localErrors, setLocalErrors] = useState({});
+
+    const idParts = (profile.id_proof || "").split(":");
 
     const { data, setData, post, processing, errors } = useForm({
         department: existingDepartment || "",
@@ -67,11 +73,32 @@ export default function ApplyForm({
         form_data: existingDraft || {
             current_step: 1,
             personal_details: {
-                first_name: "",
-                last_name: "",
-                dob: "",
-                gender: "",
-                phone: "",
+                profile_image: profile.photo_path || "",
+                first_name: (user.name || "").split(" ")[0] || "",
+                last_name:
+                    (user.name || "").split(" ").slice(1).join(" ") || "",
+                email: user.email || "",
+                fathers_name: profile.father_name || "",
+                dob: profile.date_of_birth || "",
+                gender: profile.gender || "",
+                marital_status: profile.marital_status || "",
+                category: profile.category || "",
+                nationality: profile.nationality || "Indian",
+                id_proof_type: idParts[0]?.trim() || "",
+                id_proof_number: idParts[1]?.trim() || "",
+                alt_email: profile.alt_email || "",
+                phone: profile.phone || "",
+                alt_phone: profile.alt_phone || "",
+                corr_address: profile.corr_address || "",
+                corr_city: profile.corr_city || "",
+                corr_state: profile.corr_state || "",
+                corr_pincode: profile.corr_pincode || "",
+                corr_country: profile.corr_country || "India",
+                perm_address: profile.perm_address || "",
+                perm_city: profile.perm_city || "",
+                perm_state: profile.perm_state || "",
+                perm_pincode: profile.perm_pincode || "",
+                perm_country: profile.perm_country || "India",
             },
             education: {},
             employment: {},
@@ -85,16 +112,13 @@ export default function ApplyForm({
     });
 
     const updateFormData = (section, field, value) => {
-        setData((prevData) => ({
-            ...prevData,
-            form_data: {
-                ...prevData.form_data,
-                [section]: {
-                    ...prevData.form_data[section],
-                    [field]: value,
-                },
+        setData("form_data", {
+            ...data.form_data,
+            [section]: {
+                ...data.form_data[section],
+                [field]: value,
             },
-        }));
+        });
     };
 
     const saveDraftQuietly = (showToast = false, stepToSave = currentStep) => {
@@ -105,6 +129,7 @@ export default function ApplyForm({
         };
 
         router.post(route("applicant.draft", advertisement.id), payload, {
+            forceFormData: true,
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
@@ -303,8 +328,10 @@ export default function ApplyForm({
             return;
         }
 
-        // Post the form. Inertia automatically converts data.documents files into a FormData payload!
-        post(route("applicant.store", advertisement.id));
+        // Post the form. forceFormData ensures files are uploaded properly
+        post(route("applicant.store", advertisement.id), {
+            forceFormData: true,
+        });
     };
 
     const renderCurrentStep = () => {
@@ -359,15 +386,6 @@ export default function ApplyForm({
                         localErrors={localErrors}
                     />
                 );
-            default:
-                return (
-                    <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in">
-                        <FileText className="h-16 w-16 text-slate-200 mb-4" />
-                        <h3 className="text-xl font-bold text-slate-900">
-                            More sections coming soon!
-                        </h3>
-                    </div>
-                );
             case 7:
                 return (
                     <Step7AwardsProjects
@@ -408,12 +426,20 @@ export default function ApplyForm({
                         localErrors={localErrors}
                     />
                 );
+            default:
+                return (
+                    <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in">
+                        <FileText className="h-16 w-16 text-slate-200 mb-4" />
+                        <h3 className="text-xl font-bold text-slate-900">
+                            More sections coming soon!
+                        </h3>
+                    </div>
+                );
         }
     };
 
     return (
         <ApplicantLayout>
-            <ToastListener />
             <Head title={`Apply - ${advertisement.reference_number}`} />
 
             <div className="bg-slate-900 py-8 px-6">

@@ -1,5 +1,5 @@
-import AdminLayout from "@/Layouts/AdminLayout";
-import { Head, router } from "@inertiajs/react";
+import ApplicantLayout from "@/Layouts/ApplicantLayout";
+import { Head } from "@inertiajs/react";
 import { useState } from "react";
 import {
     CheckCircle,
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 const statusColors = {
+    draft: "bg-amber-100 text-amber-700 border-amber-200",
     submitted: "bg-blue-100 text-blue-700 border-blue-200",
     shortlisted: "bg-emerald-100 text-emerald-700 border-emerald-200",
     rejected: "bg-red-100 text-red-600 border-red-200",
@@ -131,8 +132,7 @@ function StatementBlock({ value }) {
 }
 
 export default function ApplicationShow({ application }) {
-    const [status, setStatus] = useState(application.status);
-    const [saving, setSaving] = useState(false);
+    const status = application.status;
 
     const formData = application.form_data || {};
     const p = formData.personal_details || {};
@@ -155,20 +155,6 @@ export default function ApplicationShow({ application }) {
           ? [edu.school]
           : [];
 
-    function updateStatus(newStatus) {
-        setSaving(true);
-        router.patch(
-            `/admin/applications/${application.id}`,
-            { status: newStatus },
-            {
-                onFinish: () => {
-                    setSaving(false);
-                    setStatus(newStatus);
-                },
-            },
-        );
-    }
-
     const photoUrl = p.profile_image
         ? typeof p.profile_image === "string"
             ? `/storage/${p.profile_image}`
@@ -176,7 +162,7 @@ export default function ApplicationShow({ application }) {
         : null;
 
     return (
-        <AdminLayout>
+        <ApplicantLayout>
             <Head
                 title={`Application: ${p.first_name || application.user?.name}`}
             />
@@ -224,7 +210,10 @@ export default function ApplicationShow({ application }) {
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
                         <a
-                            href={`/admin/applications/${application.id}/export/pdf`}
+                            href={route(
+                                "applicant.applications.export.pdf",
+                                application.id,
+                            )}
                             target="_blank"
                             className="flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-sm rounded-md transition-all gap-1.5"
                         >
@@ -232,36 +221,16 @@ export default function ApplicationShow({ application }) {
                             PDF
                         </a>
                         <a
-                            href={`/admin/applications/${application.id}/export/excel`}
+                            href={route(
+                                "applicant.applications.export.excel",
+                                application.id,
+                            )}
                             className="flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-sm rounded-md transition-all gap-1.5"
                         >
                             <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />{" "}
                             Excel
                         </a>
                     </div>
-                    <button
-                        onClick={() => updateStatus("shortlisted")}
-                        disabled={saving || status === "shortlisted"}
-                        className="flex items-center bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors gap-1.5"
-                    >
-                        <CheckCircle className="h-3.5 w-3.5" /> Shortlist
-                    </button>
-                    <button
-                        onClick={() => updateStatus("rejected")}
-                        disabled={saving || status === "rejected"}
-                        className="flex items-center bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition-colors gap-1.5"
-                    >
-                        <XCircle className="h-3.5 w-3.5" /> Reject
-                    </button>
-                    {status !== "submitted" && (
-                        <button
-                            onClick={() => updateStatus("submitted")}
-                            disabled={saving}
-                            className="flex items-center bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-300 transition-colors gap-1.5"
-                        >
-                            <RotateCcw className="h-3.5 w-3.5" /> Reset
-                        </button>
-                    )}
                 </div>
             </div>
 
@@ -1558,6 +1527,6 @@ export default function ApplicationShow({ application }) {
                     )}
                 </Section>
             </div>
-        </AdminLayout>
+        </ApplicantLayout>
     );
 }
