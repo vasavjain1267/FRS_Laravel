@@ -14,7 +14,8 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
             association: "",
             institute: "",
             email: "",
-            contact: "",
+            contact_code: "+91",
+            contact_number: "",
         },
         {
             name: "",
@@ -22,7 +23,8 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
             association: "",
             institute: "",
             email: "",
-            contact: "",
+            contact_code: "+91",
+            contact_number: "",
         },
         {
             name: "",
@@ -30,7 +32,8 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
             association: "",
             institute: "",
             email: "",
-            contact: "",
+            contact_code: "+91",
+            contact_number: "",
         },
     ];
 
@@ -205,20 +208,65 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                         e.target.value,
                                     )
                                 }
+                                className={
+                                    localErrors[`referee_${idx}_email`]
+                                        ? "border-red-500"
+                                        : ""
+                                }
                             />
+                            {localErrors[`referee_${idx}_email`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_email`]}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2 md:col-span-2">
                             <Label>Contact No.</Label>
-                            <Input
-                                value={item.contact || ""}
-                                onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "contact",
-                                        e.target.value,
-                                    )
-                                }
-                            />
+
+                            <div className="flex gap-2">
+                                {/* Country Code */}
+                                <Input
+                                    type="text"
+                                    value={item.contact_code || "+91"}
+                                    onChange={(e) =>
+                                        handleArrayChange(
+                                            idx,
+                                            "contact_code",
+                                            e.target.value.replace(
+                                                /[^\d+]/g,
+                                                "",
+                                            ),
+                                        )
+                                    }
+                                    className="w-20 text-center px-1 bg-slate-50"
+                                    maxLength={5}
+                                />
+
+                                {/* Phone Number */}
+                                <Input
+                                    type="tel"
+                                    value={item.contact_number || ""}
+                                    onChange={(e) =>
+                                        handleArrayChange(
+                                            idx,
+                                            "contact_number",
+                                            e.target.value.replace(/\D/g, ""),
+                                        )
+                                    }
+                                    className={`flex-1 ${
+                                        localErrors[`referee_${idx}_contact`]
+                                            ? "border-red-500"
+                                            : ""
+                                    }`}
+                                    maxLength={10}
+                                />
+                            </div>
+
+                            {localErrors[`referee_${idx}_contact`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_contact`]}
+                                </p>
+                            )}
                         </div>
                     </div>
                 ))}

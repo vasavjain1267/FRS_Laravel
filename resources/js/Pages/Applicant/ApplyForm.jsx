@@ -270,25 +270,78 @@ export default function ApplyForm({
         }
         if (step === 10) {
             const refs = data.form_data.referees_section?.referees || [];
+
             if (refs.length < 3) {
                 newErrors["referees"] = "You must provide at least 3 referees.";
                 isValid = false;
             } else {
-                // Ensure the first 3 referees have all mandatory fields filled
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < refs.length; i++) {
                     const r = refs[i];
-                    if (
-                        !r.name ||
-                        !r.position ||
-                        !r.association ||
-                        !r.institute ||
-                        !r.email
-                    ) {
-                        newErrors[`referee_${i}_name`] = "Missing fields";
-                        newErrors["referees"] =
-                            "Please fill all required fields for the first 3 referees.";
+
+                    // Only enforce mandatory for first 3
+                    const isMandatory = i < 3;
+
+                    // --- NAME ---
+                    if (isMandatory && !r.name) {
+                        newErrors[`referee_${i}_name`] = "Name is required";
                         isValid = false;
                     }
+
+                    // --- POSITION ---
+                    if (isMandatory && !r.position) {
+                        newErrors[`referee_${i}_position`] =
+                            "Position is required";
+                        isValid = false;
+                    }
+
+                    // --- ASSOCIATION ---
+                    if (isMandatory && !r.association) {
+                        newErrors[`referee_${i}_association`] =
+                            "Association is required";
+                        isValid = false;
+                    }
+
+                    // --- INSTITUTE ---
+                    if (isMandatory && !r.institute) {
+                        newErrors[`referee_${i}_institute`] =
+                            "Institute is required";
+                        isValid = false;
+                    }
+
+                    // --- EMAIL ---
+                    if (isMandatory && !r.email) {
+                        newErrors[`referee_${i}_email`] = "Email is required";
+                        isValid = false;
+                    } else if (
+                        r.email &&
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)
+                    ) {
+                        newErrors[`referee_${i}_email`] =
+                            "Invalid email format";
+                        isValid = false;
+                    }
+
+                    // --- CONTACT ---
+                    if (r.contact_number) {
+                        if (r.contact_number.length !== 10) {
+                            newErrors[`referee_${i}_contact`] =
+                                "Phone must be exactly 10 digits";
+                            isValid = false;
+                        }
+                    }
+
+                    // Optional: enforce for first 3
+                    if (isMandatory && !r.contact_number) {
+                        newErrors[`referee_${i}_contact`] =
+                            "Contact number is required";
+                        isValid = false;
+                    }
+                }
+
+                // Global error (clean message)
+                if (!isValid) {
+                    newErrors["referees"] =
+                        "Please fill all required fields correctly for at least 3 referees.";
                 }
             }
         }

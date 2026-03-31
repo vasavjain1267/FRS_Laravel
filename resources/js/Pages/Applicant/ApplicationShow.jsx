@@ -305,17 +305,18 @@ export default function ApplicationShow({ application }) {
                         <DataBox label="Alternate Email" value={p.alt_email} />
                         <DataBox
                             label="Primary Mobile"
-                            value={[p.phone_code, p.phone]
-                                .filter(Boolean)
-                                .join(" ")}
+                            value={
+                                p.phone
+                                    ? `${p.phone_code || "+91"} ${p.phone}`
+                                    : null
+                            }
                         />
+
                         <DataBox
                             label="Alternate Mobile"
                             value={
                                 p.alt_phone
-                                    ? [p.alt_phone_code, p.alt_phone]
-                                          .filter(Boolean)
-                                          .join(" ")
+                                    ? `${p.alt_phone_code || "+91"} ${p.alt_phone}`
                                     : null
                             }
                         />
@@ -1476,12 +1477,12 @@ export default function ApplicationShow({ application }) {
                                             </a>
                                         </p>
                                         {/* Field is stored as 'contact' in Step10, not 'phone' */}
-                                        {(ref.contact || ref.phone) && (
+                                        {ref.contact_number && (
                                             <p>
                                                 <span className="font-bold text-slate-400 uppercase tracking-wide">
                                                     Phone:{" "}
                                                 </span>
-                                                {ref.contact || ref.phone}
+                                                {`${ref.contact_code || "+91"} ${ref.contact_number}`}
                                             </p>
                                         )}
                                     </div>

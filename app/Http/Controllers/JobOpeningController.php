@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Mail\ApplicationSubmitted;
+use App\Mail\RefereeNotification;
 use App\Models\Advertisement;
 use App\Models\JobApplication;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -231,6 +232,17 @@ class JobOpeningController extends Controller
 
         // 5. Email Notification
         Mail::to($user->email)->send(new ApplicationSubmitted($application, $pdf->output()));
+
+        // 6. Email Notifications to Referees
+        $referees = $formData['referees_section']['referees'] ?? [];
+        $applicantName = trim(($formData['personal_details']['first_name'] ?? '').' '.($formData['personal_details']['last_name'] ?? ''));
+
+        foreach ($referees as $referee) {
+            // Only send if the referee array actually has an email address
+            if (! empty($referee['email'])) {
+                Mail::to($referee['email'])->send(new RefereeNotification($application, $applicantName, $referee));
+            }
+        }
 
         return redirect()->route('dashboard')->with('success', 'Application Submitted! A confirmation copy has been sent to your email.');
     }

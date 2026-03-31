@@ -241,12 +241,25 @@
         <td class="lbl">Alternate E-mail</td>
         <td class="val">{{ $p['alt_email'] ?? 'N/A' }}</td>
     </tr>
-    <tr>
-        <td class="lbl">Primary Mobile</td>
-        <td class="val">{{ trim(($p['phone_code'] ?? '') . ' ' . ($p['phone'] ?? '')) ?: 'N/A' }}</td>
-        <td class="lbl">Alternate Mobile</td>
-        <td class="val">{{ trim(($p['alt_phone_code'] ?? '') . ' ' . ($p['alt_phone'] ?? '')) ?: 'N/A' }}</td>
-    </tr>
+<tr>
+    <td class="lbl">Primary Mobile</td>
+    <td class="val">
+        @if(!empty($p['phone']))
+            {{ ($p['phone_code'] ?? '+91') . ' ' . $p['phone'] }}
+        @else
+            N/A
+        @endif
+    </td>
+
+    <td class="lbl">Alternate Mobile</td>
+    <td class="val">
+        @if(!empty($p['alt_phone']))
+            {{ ($p['alt_phone_code'] ?? '+91') . ' ' . $p['alt_phone'] }}
+        @else
+            N/A
+        @endif
+    </td>
+</tr>
 </table>
 
 {{-- ═══════════════════════════════════════════════════════════
@@ -956,12 +969,19 @@
         <td class="lbl">Institute / Organisation</td>
         <td class="val">{{ $ref['institute'] ?? 'N/A' }}</td>
     </tr>
-    <tr>
-        <td class="lbl">E-mail</td>
-        <td class="val">{{ $ref['email'] ?? 'N/A' }}</td>
-        <td class="lbl">Contact No.</td>
-        <td class="val">{{ $ref['contact'] ?? $ref['phone'] ?? 'N/A' }}</td>
-    </tr>
+<tr>
+    <td class="lbl">E-mail</td>
+    <td class="val">{{ $ref['email'] ?? 'N/A' }}</td>
+
+    <td class="lbl">Contact No.</td>
+    <td class="val">
+        @if(!empty($ref['contact_number']))
+            {{ ($ref['contact_code'] ?? '+91') . ' ' . $ref['contact_number'] }}
+        @else
+            N/A
+        @endif
+    </td>
+</tr>
 </table>
 @empty
 <table><tr><td class="empty-row">N/A</td></tr></table>
