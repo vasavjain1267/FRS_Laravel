@@ -4,9 +4,8 @@ import { Button } from "@/Components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react";
 
 export default function Step10Referees({ data, setData, localErrors = {} }) {
-    // Grouping under 'referees_section'
     const section = data.form_data.referees_section || {};
-    // Pre-populate with 3 empty referees since 3 are usually mandatory
+    // Pre-populate with 3 empty referees since 3 are mandatory
     const referees = section.referees || [
         {
             name: "",
@@ -59,12 +58,15 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                 association: "",
                 institute: "",
                 email: "",
-                contact: "",
+                contact_code: "+91",
+                contact_number: "",
             },
         ]);
     };
 
     const removeReferee = (index) => {
+        // Never allow dropping below 3 mandatory referees
+        if (referees.length <= 3) return;
         const currentArray = [...referees];
         currentArray.splice(index, 1);
         updateReferees(currentArray);
@@ -98,6 +100,7 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                     </Button>
                 </div>
 
+                {/* Global referee error banner */}
                 {localErrors.referees && (
                     <div className="p-3 bg-red-50 text-red-700 text-sm font-bold rounded-lg border border-red-200">
                         {localErrors.referees}
@@ -112,6 +115,8 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                         <div className="absolute top-5 left-4 flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
                             {idx + 1}
                         </div>
+
+                        {/* Remove button only for extra referees beyond the mandatory 3 */}
                         {referees.length > 3 && (
                             <Button
                                 type="button"
@@ -124,6 +129,7 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                             </Button>
                         )}
 
+                        {/* ── Name ── */}
                         <div className="space-y-2 md:col-span-2">
                             <Label>
                                 Name <span className="text-red-500">*</span>
@@ -131,11 +137,7 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                             <Input
                                 value={item.name || ""}
                                 onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "name",
-                                        e.target.value,
-                                    )
+                                    handleArrayChange(idx, "name", e.target.value)
                                 }
                                 className={
                                     localErrors[`referee_${idx}_name`]
@@ -143,7 +145,14 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                         : ""
                                 }
                             />
+                            {localErrors[`referee_${idx}_name`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_name`]}
+                                </p>
+                            )}
                         </div>
+
+                        {/* ── Position ── */}
                         <div className="space-y-2 md:col-span-2 pr-8">
                             <Label>
                                 Position <span className="text-red-500">*</span>
@@ -151,15 +160,23 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                             <Input
                                 value={item.position || ""}
                                 onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "position",
-                                        e.target.value,
-                                    )
+                                    handleArrayChange(idx, "position", e.target.value)
                                 }
                                 placeholder="e.g. Professor"
+                                className={
+                                    localErrors[`referee_${idx}_position`]
+                                        ? "border-red-500"
+                                        : ""
+                                }
                             />
+                            {localErrors[`referee_${idx}_position`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_position`]}
+                                </p>
+                            )}
                         </div>
+
+                        {/* ── Association ── */}
                         <div className="space-y-2 md:col-span-2">
                             <Label>
                                 Association{" "}
@@ -168,16 +185,23 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                             <Input
                                 value={item.association || ""}
                                 onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "association",
-                                        e.target.value,
-                                    )
+                                    handleArrayChange(idx, "association", e.target.value)
                                 }
                                 placeholder="e.g. Thesis Supervisor"
+                                className={
+                                    localErrors[`referee_${idx}_association`]
+                                        ? "border-red-500"
+                                        : ""
+                                }
                             />
+                            {localErrors[`referee_${idx}_association`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_association`]}
+                                </p>
+                            )}
                         </div>
 
+                        {/* ── Institute ── */}
                         <div className="space-y-2 md:col-span-2">
                             <Label>
                                 Institute/Organization{" "}
@@ -186,14 +210,22 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                             <Input
                                 value={item.institute || ""}
                                 onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "institute",
-                                        e.target.value,
-                                    )
+                                    handleArrayChange(idx, "institute", e.target.value)
+                                }
+                                className={
+                                    localErrors[`referee_${idx}_institute`]
+                                        ? "border-red-500"
+                                        : ""
                                 }
                             />
+                            {localErrors[`referee_${idx}_institute`] && (
+                                <p className="text-xs text-red-500">
+                                    {localErrors[`referee_${idx}_institute`]}
+                                </p>
+                            )}
                         </div>
+
+                        {/* ── Email ── */}
                         <div className="space-y-2 md:col-span-2 pr-8">
                             <Label>
                                 E-mail <span className="text-red-500">*</span>
@@ -202,11 +234,7 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                 type="email"
                                 value={item.email || ""}
                                 onChange={(e) =>
-                                    handleArrayChange(
-                                        idx,
-                                        "email",
-                                        e.target.value,
-                                    )
+                                    handleArrayChange(idx, "email", e.target.value)
                                 }
                                 className={
                                     localErrors[`referee_${idx}_email`]
@@ -220,11 +248,14 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                 </p>
                             )}
                         </div>
-                        <div className="space-y-2 md:col-span-2">
-                            <Label>Contact No.</Label>
 
+                        {/* ── Contact ── */}
+                        <div className="space-y-2 md:col-span-2">
+                            <Label>
+                                Contact No.{" "}
+                                <span className="text-red-500">*</span>
+                            </Label>
                             <div className="flex gap-2">
-                                {/* Country Code */}
                                 <Input
                                     type="text"
                                     value={item.contact_code || "+91"}
@@ -232,17 +263,12 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                         handleArrayChange(
                                             idx,
                                             "contact_code",
-                                            e.target.value.replace(
-                                                /[^\d+]/g,
-                                                "",
-                                            ),
+                                            e.target.value.replace(/[^\d+]/g, ""),
                                         )
                                     }
                                     className="w-20 text-center px-1 bg-slate-50"
                                     maxLength={5}
                                 />
-
-                                {/* Phone Number */}
                                 <Input
                                     type="tel"
                                     value={item.contact_number || ""}
@@ -261,7 +287,6 @@ export default function Step10Referees({ data, setData, localErrors = {} }) {
                                     maxLength={10}
                                 />
                             </div>
-
                             {localErrors[`referee_${idx}_contact`] && (
                                 <p className="text-xs text-red-500">
                                     {localErrors[`referee_${idx}_contact`]}

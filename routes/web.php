@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\ApplicationController;
-use App\Http\Controllers\JobOpeningController;
+use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -25,18 +25,18 @@ Route::middleware('auth')->group(function () {
 
 // Applicant Routes
 Route::middleware(['auth', 'role:applicant'])->group(function () {
-    Route::get('/dashboard', [JobOpeningController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [RecruitmentController::class, 'index'])->name('dashboard');
 
     // --- NEW APPLICANT DASHBOARD ROUTES ---
-    Route::get('/applications', [JobOpeningController::class, 'myApplications'])->name('applicant.applications');
-    Route::get('/applications/{id}', [JobOpeningController::class, 'show'])->name('applicant.applications.show');
-    Route::get('/applications/{id}/export/pdf', [JobOpeningController::class, 'exportPdf'])->name('applicant.applications.export.pdf');
-    Route::get('/applications/{id}/export/excel', [JobOpeningController::class, 'exportExcel'])->name('applicant.applications.export.excel');
+    Route::get('/applications', [RecruitmentController::class, 'myApplications'])->name('applicant.applications');
+    Route::get('/applications/{id}', [RecruitmentController::class, 'show'])->name('applicant.applications.show');
+    Route::get('/applications/{id}/export/pdf', [RecruitmentController::class, 'exportPdf'])->name('applicant.applications.export.pdf');
+    Route::get('/applications/{id}/export/excel', [RecruitmentController::class, 'exportExcel'])->name('applicant.applications.export.excel');
 
     // Application Wizard Routes
-    Route::get('/apply/{advertisement}', [JobOpeningController::class, 'showApplyForm'])->name('applicant.apply');
-    Route::post('/apply/{advertisement}/draft', [JobOpeningController::class, 'saveDraft'])->name('applicant.draft');
-    Route::post('/apply/{advertisement}/submit', [JobOpeningController::class, 'submitApplication'])->name('applicant.store');
+    Route::get('/apply/{advertisement}', [RecruitmentController::class, 'showApplyForm'])->name('applicant.apply');
+    Route::post('/apply/{advertisement}/draft', [RecruitmentController::class, 'saveDraft'])->name('applicant.draft');
+    Route::post('/apply/{advertisement}/submit', [RecruitmentController::class, 'submitApplication'])->name('applicant.store');
 });
 
 // Shared Admin + HOD Routes
@@ -52,9 +52,9 @@ Route::middleware(['auth', 'role:admin,hod'])->prefix('admin')->name('admin.')->
 
     // Admin-only routes (nested)
     Route::middleware('role:admin')->group(function () {
-        Route::get('/jobs', [JobOpeningController::class, 'adminIndex'])->name('jobs.index');
-        Route::get('/jobs/create', [JobOpeningController::class, 'create'])->name('jobs.create');
-        Route::post('/jobs', [JobOpeningController::class, 'store'])->name('jobs.store');
+        Route::get('/jobs', [RecruitmentController::class, 'adminIndex'])->name('jobs.index');
+        Route::get('/jobs/create', [RecruitmentController::class, 'create'])->name('jobs.create');
+        Route::post('/jobs', [RecruitmentController::class, 'store'])->name('jobs.store');
         Route::patch('/users/{user}/role', [AdminController::class, 'updateRole'])->name('users.update-role');
         Route::get('/users', [AdminController::class, 'users'])->name('users.index');
     });

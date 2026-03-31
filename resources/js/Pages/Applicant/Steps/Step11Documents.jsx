@@ -4,7 +4,6 @@ import Checkbox from "@/Components/Checkbox";
 import { AlertCircle, UploadCloud } from "lucide-react";
 
 export default function Step11Documents({ data, setData, localErrors = {} }) {
-    // We store files in a separate object so they don't break the JSON draft saving
     const docs = data.documents || {};
     const declaration = data.form_data.declaration || false;
 
@@ -28,7 +27,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                 </p>
             </div>
 
-            {/* 20. Best Papers Upload */}
+            {/* (A) Best Papers */}
             <div className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-100">
                 <h4 className="font-bold text-lg text-slate-800 border-b pb-2">
                     (A) Reprints of at most 5 Best Research Papers
@@ -53,7 +52,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                 </div>
             </div>
 
-            {/* 21. Document Checklist */}
+            {/* (B) Document Checklist */}
             <div className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-100">
                 <div className="flex items-center gap-2 border-b pb-2">
                     <UploadCloud className="h-5 w-5 text-blue-600" />
@@ -62,6 +61,8 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                     </h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {/* 1. PhD Certificate — REQUIRED */}
                     <div className="space-y-2">
                         <Label>
                             1. PHD Certificate{" "}
@@ -73,9 +74,16 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             onChange={(e) =>
                                 handleFileChange("phd_cert", e.target.files[0])
                             }
-                            className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
+                            className={`bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer ${localErrors.phd_cert ? "border-red-500" : ""}`}
                         />
+                        {localErrors.phd_cert && (
+                            <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {localErrors.phd_cert}
+                            </p>
+                        )}
                     </div>
+
                     <div className="space-y-2">
                         <Label>2. PG Certificate</Label>
                         <Input
@@ -87,6 +95,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
                     <div className="space-y-2">
                         <Label>3. UG Certificate</Label>
                         <Input
@@ -98,6 +107,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
                     <div className="space-y-2">
                         <Label>4. 12th/HSC/Diploma</Label>
                         <Input
@@ -109,6 +119,8 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
+                    {/* 5. 10th Certificate — REQUIRED */}
                     <div className="space-y-2">
                         <Label>
                             5. 10th/SSC Certificate{" "}
@@ -120,9 +132,16 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             onChange={(e) =>
                                 handleFileChange("ssc_cert", e.target.files[0])
                             }
-                            className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
+                            className={`bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer ${localErrors.ssc_cert ? "border-red-500" : ""}`}
                         />
+                        {localErrors.ssc_cert && (
+                            <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {localErrors.ssc_cert}
+                            </p>
+                        )}
                     </div>
+
                     <div className="space-y-2">
                         <Label>6. Latest Payslip</Label>
                         <Input
@@ -134,6 +153,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
                     <div className="space-y-2">
                         <Label>7. Undertaking/NOC</Label>
                         <Input
@@ -145,6 +165,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
                     <div className="space-y-2">
                         <Label>8. Post PhD Experience Certificate</Label>
                         <Input
@@ -159,6 +180,7 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                             className="bg-white file:bg-blue-50 file:text-blue-700 file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 cursor-pointer"
                         />
                     </div>
+
                     <div className="space-y-2 md:col-span-2">
                         <Label>
                             9. Any other relevant documents (Merged PDF)
@@ -177,7 +199,8 @@ export default function Step11Documents({ data, setData, localErrors = {} }) {
                     </div>
                 </div>
             </div>
-            {/* 23. Final Declaration */}
+
+            {/* Final Declaration */}
             <div className="space-y-4 bg-emerald-50 p-6 rounded-xl border border-emerald-200">
                 <h4 className="font-bold text-lg text-emerald-900">
                     23. Final Declaration

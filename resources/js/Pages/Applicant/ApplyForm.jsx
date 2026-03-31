@@ -19,6 +19,7 @@ import {
     UploadCloud,
     FileSpreadsheet,
     Users,
+    Loader2,
 } from "lucide-react";
 import ApplicantLayout from "@/Layouts/ApplicantLayout";
 import { toast } from "sonner";
@@ -49,6 +50,9 @@ const STEPS = [
     { id: 11, title: "Documents & Submit", icon: UploadCloud },
 ];
 
+// Email regex used consistently across frontend validations
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function ApplyForm({
     advertisement,
     existingDraft,
@@ -63,6 +67,8 @@ export default function ApplyForm({
         existingDraft?.current_step ? Number(existingDraft.current_step) : 1,
     );
     const [localErrors, setLocalErrors] = useState({});
+    // Tracks when a quiet background draft-save is in flight
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
 
     const idParts = (profile.id_proof || "").split(":");
 
@@ -121,6 +127,9 @@ export default function ApplyForm({
         });
     };
 
+    // -------------------------------------------------------------------
+    // DRAFT SAVE — no validation required; tracks loading state
+    // -------------------------------------------------------------------
     const saveDraftQuietly = (showToast = false, stepToSave = currentStep) => {
         const payload = {
             department: data.department,
@@ -128,6 +137,7 @@ export default function ApplyForm({
             form_data: { ...data.form_data, current_step: stepToSave },
         };
 
+        setIsSavingDraft(true);
         router.post(route("applicant.draft", advertisement.id), payload, {
             forceFormData: true,
             preserveScroll: true,
@@ -139,10 +149,17 @@ export default function ApplyForm({
                         "Draft saved successfully! You can safely leave and return later.",
                     );
             },
+            onError: () => {
+                toast.error("Failed to save draft. Please try again.");
+            },
+            onFinish: () => setIsSavingDraft(false),
         });
     };
 
-    // --- THE GATEKEEPER ---
+    // -------------------------------------------------------------------
+    // FRONTEND VALIDATION GATEKEEPER
+    // Called on "Save & Continue" AND from sidebar navigation forward
+    // -------------------------------------------------------------------
     const validateStep = (step) => {
         let isValid = true;
         let newErrors = {};
@@ -160,52 +177,69 @@ export default function ApplyForm({
 
         if (step === 2) {
             const p = data.form_data.personal_details || {};
-            if (!p.first_name) {
-                newErrors.first_name = "Required";
+            if (!p.first_name?.trim()) {
+                newErrors.first_name = "First name is required";
                 isValid = false;
             }
-            if (!p.last_name) {
-                newErrors.last_name = "Required";
+            if (!p.last_name?.trim()) {
+                newErrors.last_name = "Last name is required";
                 isValid = false;
             }
             if (!p.dob) {
-                newErrors.dob = "Required";
+                newErrors.dob = "Date of birth is required";
                 isValid = false;
             }
             if (!p.gender) {
-                newErrors.gender = "Required";
+                newErrors.gender = "Gender is required";
                 isValid = false;
             }
             if (!p.category) {
-                newErrors.category = "Required";
+                newErrors.category = "Category is required";
                 isValid = false;
             }
             if (!p.nationality) {
-                newErrors.nationality = "Required";
+                newErrors.nationality = "Nationality is required";
                 isValid = false;
             }
-            if (!p.email) {
-                newErrors.email = "Required";
+            // Email — check presence AND format
+            if (!p.email?.trim()) {
+                newErrors.email = "Email is required";
+                isValid = false;
+            } else if (!EMAIL_REGEX.test(p.email.trim())) {
+                newErrors.email = "Invalid email format";
                 isValid = false;
             }
-            if (!p.phone || p.phone.length < 10) {
-                newErrors.phone = "10-digit number required";
+            // Alt email — only format check if provided
+            if (p.alt_email?.trim() && !EMAIL_REGEX.test(p.alt_email.trim())) {
+                newErrors.alt_email = "Invalid alternate email format";
+                isValid = false;
+            }
+            // Phone — presence and 10-digit check
+            if (!p.phone || String(p.phone).replace(/\D/g, "").length < 10) {
+                newErrors.phone = "10-digit phone number required";
                 isValid = false;
             }
         }
 
         if (step === 3) {
             const phd = data.form_data.education?.phd || {};
-            if (!phd.university) {
-                newErrors["phd.university"] = "Required";
+            if (!phd.university?.trim()) {
+                newErrors["phd.university"] = "University is required";
                 isValid = false;
             }
-            if (!phd.department) {
-                newErrors["phd.department"] = "Required";
+            if (!phd.department?.trim()) {
+                newErrors["phd.department"] = "Department is required";
                 isValid = false;
             }
             if (!phd.year_joining) {
-                newErrors["phd.year_joining"] = "Required";
+                newErrors["phd.year_joining"] = "Year of joining is required";
+                isValid = false;
+            } else if (
+                isNaN(Number(phd.year_joining)) ||
+                Number(phd.year_joining) < 1950 ||
+                Number(phd.year_joining) > new Date().getFullYear()
+            ) {
+                newErrors["phd.year_joining"] = "Enter a valid year";
                 isValid = false;
             }
         }
@@ -214,16 +248,16 @@ export default function ApplyForm({
             const emp = data.form_data.employment || {};
             const present = emp.present || {};
 
-            if (!present.position) {
-                newErrors["present.position"] = "Required";
+            if (!present.position?.trim()) {
+                newErrors["present.position"] = "Position is required";
                 isValid = false;
             }
-            if (!present.organization) {
-                newErrors["present.organization"] = "Required";
+            if (!present.organization?.trim()) {
+                newErrors["present.organization"] = "Organization is required";
                 isValid = false;
             }
             if (!present.date_joining) {
-                newErrors["present.date_joining"] = "Required";
+                newErrors["present.date_joining"] = "Date of joining is required";
                 isValid = false;
             }
 
@@ -238,11 +272,11 @@ export default function ApplyForm({
             const res = data.form_data.research || {};
             const spec = res.specialization || {};
 
-            if (!spec.area_of_specialization) {
+            if (!spec.area_of_specialization?.trim()) {
                 newErrors["spec.area"] = "Area of Specialization is required";
                 isValid = false;
             }
-            if (!spec.current_area_of_research) {
+            if (!spec.current_area_of_research?.trim()) {
                 newErrors["spec.current"] =
                     "Current Area of Research is required";
                 isValid = false;
@@ -251,98 +285,99 @@ export default function ApplyForm({
 
         if (step === 8) {
             const statements = data.form_data.statements || {};
-            if (
-                !statements.research_plan ||
-                statements.research_plan.trim().length === 0
-            ) {
+            if (!statements.research_plan?.trim()) {
                 newErrors["statements.research_plan"] =
-                    "Research plan is required.";
+                    "Research contribution & future plans are required";
                 isValid = false;
             }
-            if (
-                !statements.teaching_plan ||
-                statements.teaching_plan.trim().length === 0
-            ) {
+            if (!statements.teaching_plan?.trim()) {
                 newErrors["statements.teaching_plan"] =
-                    "Teaching plan is required.";
+                    "Teaching contribution & future plans are required";
                 isValid = false;
             }
         }
+
         if (step === 10) {
             const refs = data.form_data.referees_section?.referees || [];
 
             if (refs.length < 3) {
-                newErrors["referees"] = "You must provide at least 3 referees.";
+                newErrors["referees"] =
+                    "You must provide at least 3 referees.";
                 isValid = false;
             } else {
                 for (let i = 0; i < refs.length; i++) {
                     const r = refs[i];
-
-                    // Only enforce mandatory for first 3
                     const isMandatory = i < 3;
 
-                    // --- NAME ---
-                    if (isMandatory && !r.name) {
+                    if (isMandatory && !r.name?.trim()) {
                         newErrors[`referee_${i}_name`] = "Name is required";
                         isValid = false;
                     }
-
-                    // --- POSITION ---
-                    if (isMandatory && !r.position) {
+                    if (isMandatory && !r.position?.trim()) {
                         newErrors[`referee_${i}_position`] =
                             "Position is required";
                         isValid = false;
                     }
-
-                    // --- ASSOCIATION ---
-                    if (isMandatory && !r.association) {
+                    if (isMandatory && !r.association?.trim()) {
                         newErrors[`referee_${i}_association`] =
                             "Association is required";
                         isValid = false;
                     }
-
-                    // --- INSTITUTE ---
-                    if (isMandatory && !r.institute) {
+                    if (isMandatory && !r.institute?.trim()) {
                         newErrors[`referee_${i}_institute`] =
                             "Institute is required";
                         isValid = false;
                     }
-
-                    // --- EMAIL ---
-                    if (isMandatory && !r.email) {
+                    if (isMandatory && !r.email?.trim()) {
                         newErrors[`referee_${i}_email`] = "Email is required";
                         isValid = false;
                     } else if (
-                        r.email &&
-                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)
+                        r.email?.trim() &&
+                        !EMAIL_REGEX.test(r.email.trim())
                     ) {
                         newErrors[`referee_${i}_email`] =
                             "Invalid email format";
                         isValid = false;
                     }
-
-                    // --- CONTACT ---
-                    if (r.contact_number) {
-                        if (r.contact_number.length !== 10) {
-                            newErrors[`referee_${i}_contact`] =
-                                "Phone must be exactly 10 digits";
-                            isValid = false;
-                        }
-                    }
-
-                    // Optional: enforce for first 3
+                    // Contact — only check format if provided; mandatory for first 3
                     if (isMandatory && !r.contact_number) {
                         newErrors[`referee_${i}_contact`] =
                             "Contact number is required";
                         isValid = false;
+                    } else if (
+                        r.contact_number &&
+                        String(r.contact_number).replace(/\D/g, "").length !==
+                            10
+                    ) {
+                        newErrors[`referee_${i}_contact`] =
+                            "Phone must be exactly 10 digits";
+                        isValid = false;
                     }
                 }
 
-                // Global error (clean message)
-                if (!isValid) {
+                if (!isValid && !newErrors["referees"]) {
                     newErrors["referees"] =
-                        "Please fill all required fields correctly for at least 3 referees.";
+                        "Please fill all required fields for at least 3 referees.";
                 }
+            }
+        }
+
+        if (step === 11) {
+            // Declaration is required
+            if (!data.form_data.declaration) {
+                newErrors.declaration =
+                    "You must agree to the final declaration before submitting.";
+                isValid = false;
+            }
+            // Required file uploads
+            const docs = data.documents || {};
+            if (!docs.phd_cert) {
+                newErrors.phd_cert = "PhD Certificate is required";
+                isValid = false;
+            }
+            if (!docs.ssc_cert) {
+                newErrors.ssc_cert = "10th/SSC Certificate is required";
+                isValid = false;
             }
         }
 
@@ -352,10 +387,16 @@ export default function ApplyForm({
         return isValid;
     };
 
+    // -------------------------------------------------------------------
+    // SAVE & CONTINUE — frontend validates, then navigate + draft-save.
+    // Full backend validation fires only on final submit (the real security
+    // boundary). All step rules are pure data checks — no DB lookups needed
+    // — so a round-trip per step would add latency with zero security gain.
+    // -------------------------------------------------------------------
     const handleNext = () => {
-        if (!validateStep(currentStep)) return; // Block moving forward if invalid!
-        setLocalErrors({});
+        if (!validateStep(currentStep)) return;
 
+        setLocalErrors({});
         const nextStep = Math.min(currentStep + 1, STEPS.length);
         setCurrentStep(nextStep);
         saveDraftQuietly(false, nextStep);
@@ -368,24 +409,22 @@ export default function ApplyForm({
         saveDraftQuietly(false, prevStep);
     };
 
+    // -------------------------------------------------------------------
+    // FINAL SUBMIT — reuses validateStep(11) so declaration + docs are
+    // checked consistently in one place
+    // -------------------------------------------------------------------
     const submitFinal = (e) => {
         e.preventDefault();
 
-        // Final Declaration Check
-        if (!data.form_data.declaration) {
-            setLocalErrors({
-                declaration:
-                    "You must agree to the final declaration before submitting.",
-            });
-            toast.error("Please agree to the final declaration.");
-            return;
-        }
+        if (!validateStep(11)) return;
 
-        // Post the form. forceFormData ensures files are uploaded properly
         post(route("applicant.store", advertisement.id), {
             forceFormData: true,
         });
     };
+
+    // Disable navigation buttons while a background save or final submit is in flight
+    const isBusy = isSavingDraft || processing;
 
     const renderCurrentStep = () => {
         switch (currentStep) {
@@ -523,9 +562,16 @@ export default function ApplyForm({
                                                 !validateStep(currentStep)
                                             )
                                                 return;
+                                            setLocalErrors({});
                                             setCurrentStep(step.id);
                                             saveDraftQuietly(false, step.id);
                                         }}
+                                        disabled={
+                                            isBusy ||
+                                            (!isActive &&
+                                                !isCompleted &&
+                                                step.id > currentStep)
+                                        }
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                                             isActive
                                                 ? "bg-blue-600 text-white shadow-md"
@@ -533,11 +579,6 @@ export default function ApplyForm({
                                                   ? "bg-white text-slate-700 hover:bg-slate-50 ring-1 ring-slate-200"
                                                   : "bg-slate-50 text-slate-400 cursor-not-allowed"
                                         }`}
-                                        disabled={
-                                            !isActive &&
-                                            !isCompleted &&
-                                            step.id > currentStep
-                                        }
                                     >
                                         <step.icon
                                             className={`h-5 w-5 ${isActive ? "text-white" : isCompleted ? "text-blue-600" : "text-slate-400"}`}
@@ -569,10 +610,20 @@ export default function ApplyForm({
                                         onClick={() =>
                                             saveDraftQuietly(true, currentStep)
                                         }
+                                        disabled={isBusy}
                                         className="font-bold text-slate-600 border-slate-300 hover:bg-slate-100"
                                     >
-                                        <Save className="mr-2 h-4 w-4" /> Save
-                                        Draft & Exit
+                                        {isSavingDraft ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                                                Saving…
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="mr-2 h-4 w-4" />{" "}
+                                                Save Draft & Exit
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
                                 <div className="flex gap-3">
@@ -580,6 +631,7 @@ export default function ApplyForm({
                                         <Button
                                             variant="outline"
                                             onClick={handlePrev}
+                                            disabled={isBusy}
                                             className="font-bold"
                                         >
                                             <ArrowLeft className="mr-2 h-4 w-4" />{" "}
@@ -589,19 +641,38 @@ export default function ApplyForm({
                                     {currentStep < STEPS.length ? (
                                         <Button
                                             onClick={handleNext}
+                                            disabled={isBusy}
                                             className="bg-blue-600 text-white font-bold hover:bg-blue-700"
                                         >
-                                            Save & Continue{" "}
-                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                            {isSavingDraft ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                                                    Saving…
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Save & Continue{" "}
+                                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                                </>
+                                            )}
                                         </Button>
                                     ) : (
                                         <Button
                                             onClick={submitFinal}
-                                            disabled={processing}
+                                            disabled={isBusy}
                                             className="bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                                         >
-                                            Submit Final Application{" "}
-                                            <CheckCircle2 className="ml-2 h-4 w-4" />
+                                            {processing ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                                                    Submitting…
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Submit Final Application{" "}
+                                                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                                                </>
+                                            )}
                                         </Button>
                                     )}
                                 </div>
