@@ -44,15 +44,17 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // Check if user is logging into the correct portal
-        if ($user->role !== $attemptedRole) {
+        $allowedRoles = $attemptedRole === 'admin' ? ['admin', 'hod'] : ['applicant'];
+        if (! in_array($user->role, $allowedRoles)) {
 
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
+            $portalName = $attemptedRole === 'admin' ? 'Institute' : 'Applicant';
+
             throw ValidationException::withMessages([
-                'email' => 'Unauthorized access. You cannot log in to the '.ucfirst($attemptedRole).' portal with these credentials.',
+                'email' => 'Unauthorized access. You cannot log in to the '.$portalName.' portal with these credentials.',
             ]);
         }
 
@@ -67,7 +69,7 @@ class AuthenticatedSessionController extends Controller
                 return redirect()->route('admin.dashboard')->with('success', 'Login successful! Welcome to the Admin portal.');
 
             case 'hod':
-                return redirect()->route('admin.dashboard')->with('success', 'Login successful! Welcome to the HOD portal.');
+                return redirect()->route('hod.dashboard')->with('success', 'Login successful! Welcome to the Department portal.');
 
             case 'applicant':
             default:

@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\ApplicationController;
-use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecruitmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -39,25 +39,43 @@ Route::middleware(['auth', 'role:applicant'])->group(function () {
     Route::post('/apply/{advertisement}/submit', [RecruitmentController::class, 'submitApplication'])->name('applicant.store');
 });
 
-// Shared Admin + HOD Routes
-Route::middleware(['auth', 'role:admin,hod'])->prefix('admin')->name('admin.')->group(function () {
+// --- ADMIN ONLY ROUTES ---
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
 
-    // Applications (both admin and hod can access)
+    // Settings
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::post('/departments', [AdminController::class, 'storeDepartment'])->name('departments.store');
+    Route::delete('/departments/{department}', [AdminController::class, 'destroyDepartment'])->name('departments.destroy');
+
+    // Applications
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     Route::get('/applications/{id}', [ApplicationController::class, 'show'])->name('applications.show');
     Route::patch('/applications/{id}', [ApplicationController::class, 'updateStatus'])->name('applications.update');
     Route::get('/applications/{id}/export/pdf', [ApplicationController::class, 'exportPdf'])->name('applications.export.pdf');
     Route::get('/applications/{id}/export/excel', [ApplicationController::class, 'exportExcel'])->name('applications.export.excel');
 
-    // Admin-only routes (nested)
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/jobs', [RecruitmentController::class, 'adminIndex'])->name('jobs.index');
-        Route::get('/jobs/create', [RecruitmentController::class, 'create'])->name('jobs.create');
-        Route::post('/jobs', [RecruitmentController::class, 'store'])->name('jobs.store');
-        Route::patch('/users/{user}/role', [AdminController::class, 'updateRole'])->name('users.update-role');
-        Route::get('/users', [AdminController::class, 'users'])->name('users.index');
-    });
+    // Jobs & Users
+    Route::get('/jobs', [RecruitmentController::class, 'adminIndex'])->name('jobs.index');
+    Route::get('/jobs/create', [RecruitmentController::class, 'create'])->name('jobs.create');
+    Route::post('/jobs', [RecruitmentController::class, 'store'])->name('jobs.store');
+    Route::patch('/users/{user}/role', [AdminController::class, 'updateRole'])->name('users.update-role');
+    Route::get('/users', [AdminController::class, 'users'])->name('users.index');
+
+});
+
+// --- HOD ONLY ROUTES ---
+Route::middleware(['auth', 'role:hod'])->prefix('hod')->name('hod.')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // Settings
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    // Applications (HODs only see their scoped data)
+    Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
+    Route::get('/applications/{id}', [ApplicationController::class, 'show'])->name('applications.show');
+    Route::patch('/applications/{id}', [ApplicationController::class, 'updateStatus'])->name('applications.update');
+    Route::get('/applications/{id}/export/pdf', [ApplicationController::class, 'exportPdf'])->name('applications.export.pdf');
+    Route::get('/applications/{id}/export/excel', [ApplicationController::class, 'exportExcel'])->name('applications.export.excel');
 });
 
 require __DIR__.'/auth.php';

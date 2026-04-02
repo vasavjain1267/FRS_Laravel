@@ -21,23 +21,7 @@ import {
 } from "lucide-react";
 import AdminLayout from "@/Layouts/AdminLayout";
 
-const DEPARTMENTS = [
-    "Astronomy, Astrophysics and Space Engineering",
-    "Chemical engineering",
-    "Chemistry",
-    "Civil Engineering",
-    "Computer Science and Engineering",
-    "Electrical Engineering",
-    "Humanities and Social Sciences",
-    "Mathematics",
-    "Mechanical Engineering",
-    "Mehta Family School of Biosciences and Biomedical Engineering",
-    "Mehta Family School of Sustainability",
-    "Metallurgical Engineering and Materials Science",
-    "Physics",
-    "School of Innovation",
-];
-
+// Grades remain hardcoded as they are fixed academic levels
 const GRADES = [
     "Assistant Professor Grade II",
     "Assistant Professor Grade I",
@@ -45,7 +29,8 @@ const GRADES = [
     "Professor",
 ];
 
-export default function CreateJob() {
+export default function CreateJob({ departments }) {
+    // 1. Receive departments as prop
     const fileInputRef = useRef(null);
 
     const {
@@ -62,24 +47,25 @@ export default function CreateJob() {
         title: "",
         deadline: "",
         document: null,
-        departments: {},
+        departments: {}, // This will store { "Dept Name": ["Grade 1", "Grade 2"] }
     });
-    const handleDepartmentToggle = (dept) => {
+
+    const handleDepartmentToggle = (deptName) => {
         let updated = { ...data.departments };
-        if (updated[dept]) {
-            delete updated[dept];
+        if (updated[deptName]) {
+            delete updated[deptName];
         } else {
-            updated[dept] = [];
+            updated[deptName] = [];
         }
         setData("departments", updated);
     };
 
-    const handleGradeToggle = (dept, grade) => {
+    const handleGradeToggle = (deptName, grade) => {
         let updated = { ...data.departments };
-        if (updated[dept].includes(grade)) {
-            updated[dept] = updated[dept].filter((g) => g !== grade);
+        if (updated[deptName].includes(grade)) {
+            updated[deptName] = updated[deptName].filter((g) => g !== grade);
         } else {
-            updated[dept].push(grade);
+            updated[deptName].push(grade);
         }
         setData("departments", updated);
     };
@@ -95,11 +81,11 @@ export default function CreateJob() {
             return;
         }
 
-        for (const dept of selectedDepts) {
-            if (data.departments[dept].length === 0) {
+        for (const deptName of selectedDepts) {
+            if (data.departments[deptName].length === 0) {
                 setError(
                     "departments",
-                    `You checked "${dept}" but didn't select any grades for it!`,
+                    `You checked "${deptName}" but didn't select any grades for it!`,
                 );
                 return;
             }
@@ -136,7 +122,7 @@ export default function CreateJob() {
 
                     <form onSubmit={submit}>
                         <CardContent className="space-y-8 pt-6 bg-slate-50/80 border-t border-slate-100">
-                            {/* Row 1: Advt Number & Title */}
+                            {/* Advt Number & Title */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label
@@ -194,7 +180,7 @@ export default function CreateJob() {
                                 </div>
                             </div>
 
-                            {/* Row 2: Deadline & File Upload */}
+                            {/* Deadline & File */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label
@@ -256,26 +242,26 @@ export default function CreateJob() {
                                 </div>
                             </div>
 
-                            {/* Row 3: SMART Department & Grade Checkboxes */}
+                            {/* SMART Department & Grade Checkboxes */}
                             <div className="space-y-4 pt-4 border-t border-slate-200">
                                 <Label className="font-bold text-slate-800 text-lg">
                                     Applicable Departments & Roles
                                 </Label>
                                 <p className="text-sm text-slate-500">
                                     Select a department, then select the
-                                    specific grades available for that
-                                    department.
+                                    specific grades available for it.
                                 </p>
 
                                 <div className="grid grid-cols-1 gap-4">
-                                    {DEPARTMENTS.map((dept) => {
+                                    {/* 2. Map through the dynamic departments prop */}
+                                    {departments.map((dept) => {
                                         const isSelected =
                                             data.departments.hasOwnProperty(
-                                                dept,
+                                                dept.name,
                                             );
                                         return (
                                             <div
-                                                key={dept}
+                                                key={dept.id}
                                                 className={`border rounded-lg transition-all ${isSelected ? "border-indigo-500 bg-indigo-50/30 shadow-sm" : "border-slate-200 bg-white"}`}
                                             >
                                                 {/* Department Toggle */}
@@ -286,18 +272,18 @@ export default function CreateJob() {
                                                         checked={isSelected}
                                                         onChange={() =>
                                                             handleDepartmentToggle(
-                                                                dept,
+                                                                dept.name,
                                                             )
                                                         }
                                                     />
                                                     <span
                                                         className={`font-bold ${isSelected ? "text-indigo-900" : "text-slate-700"}`}
                                                     >
-                                                        {dept}
+                                                        {dept.name}
                                                     </span>
                                                 </label>
 
-                                                {/* Grades Sub-menu (Appears only when department is checked) */}
+                                                {/* Grades Sub-menu */}
                                                 {isSelected && (
                                                     <div className="px-12 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         {GRADES.map((grade) => (
@@ -310,12 +296,13 @@ export default function CreateJob() {
                                                                     className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
                                                                     checked={data.departments[
                                                                         dept
+                                                                            .name
                                                                     ].includes(
                                                                         grade,
                                                                     )}
                                                                     onChange={() =>
                                                                         handleGradeToggle(
-                                                                            dept,
+                                                                            dept.name,
                                                                             grade,
                                                                         )
                                                                     }
@@ -334,7 +321,7 @@ export default function CreateJob() {
                                 {errors.departments && (
                                     <p className="text-sm font-medium text-red-500 mt-2">
                                         You must select at least one department
-                                        and assign at least one grade to it.
+                                        and assign at least one grade.
                                     </p>
                                 )}
                             </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ApplicationController;
 use App\Mail\ApplicationSubmitted;
 use App\Mail\RefereeNotification;
 use App\Models\Advertisement;
+use App\Models\Department;
 use App\Models\JobApplication;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -35,8 +36,8 @@ class RecruitmentController extends Controller
      */
     private function errorsForStep(int $step, Request $request): array
     {
-        $errors    = [];
-        $formData  = $request->input('form_data', []);
+        $errors = [];
+        $formData = $request->input('form_data', []);
 
         switch ($step) {
             // -----------------------------------------------------------------
@@ -49,7 +50,7 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 2:
                 $p = $formData['personal_details'] ?? [];
 
@@ -91,7 +92,7 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 3:
                 $phd = $formData['education']['phd'] ?? [];
 
@@ -113,9 +114,9 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 4:
-                $emp     = $formData['employment'] ?? [];
+                $emp = $formData['employment'] ?? [];
                 $present = $emp['present'] ?? [];
 
                 if (empty(trim((string) ($present['position'] ?? '')))) {
@@ -134,7 +135,7 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 5:
                 $spec = $formData['research']['specialization'] ?? [];
 
@@ -146,7 +147,7 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 8:
                 $statements = $formData['statements'] ?? [];
 
@@ -160,7 +161,7 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // -----------------------------------------------------------------
+                // -----------------------------------------------------------------
             case 10:
                 $refs = $formData['referees_section']['referees'] ?? [];
 
@@ -213,15 +214,15 @@ class RecruitmentController extends Controller
                 }
                 break;
 
-            // Steps 6, 7, 9 have no mandatory fields — nothing to validate here.
+                // Steps 6, 7, 9 have no mandatory fields — nothing to validate here.
         }
 
         return $errors;
     }
 
-    // =========================================================================
+    
     // PUBLIC ROUTES
-    // =========================================================================
+    
 
     /**
      * Dashboard: Display active advertisements.
@@ -230,7 +231,7 @@ class RecruitmentController extends Controller
     {
         $advertisements = Advertisement::where('is_active', true)->latest()->get();
         $submittedAdvtIds = [];
-        $draftAdvtIds     = [];
+        $draftAdvtIds = [];
 
         if (Auth::check()) {
             $applications = JobApplication::where('user_id', Auth::id())
@@ -246,9 +247,9 @@ class RecruitmentController extends Controller
         }
 
         return Inertia::render('Dashboard', [
-            'advertisements'   => $advertisements,
+            'advertisements' => $advertisements,
             'submittedAdvtIds' => $submittedAdvtIds,
-            'draftAdvtIds'     => $draftAdvtIds,
+            'draftAdvtIds' => $draftAdvtIds,
         ]);
     }
 
@@ -263,15 +264,15 @@ class RecruitmentController extends Controller
             ->get()
             ->map(function ($app) {
                 return [
-                    'id'           => $app->id,
-                    'advertisement'=> $app->advertisement,
-                    'department'   => $app->department,
-                    'grade'        => $app->grade,
-                    'status'       => $app->status,
+                    'id' => $app->id,
+                    'advertisement' => $app->advertisement,
+                    'department' => $app->department,
+                    'grade' => $app->grade,
+                    'status' => $app->status,
                     'current_step' => $app->form_data['current_step'] ?? 1,
-                    'updated_at'   => $app->updated_at->format('M d, Y - h:i A'),
-                    'has_pdf'      => $app->status === 'submitted',
-                    'pdf_url'      => $app->status === 'submitted'
+                    'updated_at' => $app->updated_at->format('M d, Y - h:i A'),
+                    'has_pdf' => $app->status === 'submitted',
+                    'pdf_url' => $app->status === 'submitted'
                         ? route('applicant.applications.export.pdf', $app->id)
                         : null,
                 ];
@@ -306,16 +307,16 @@ class RecruitmentController extends Controller
             ->findOrFail($id);
 
         $data = $application->form_data;
-        $p    = $data['personal_details'] ?? [];
+        $p = $data['personal_details'] ?? [];
 
         $pdf = Pdf::loadView('pdf.application_format', [
-            'application'  => $application,
-            'advertisement'=> $application->advertisement,
-            'data'         => $data,
+            'application' => $application,
+            'advertisement' => $application->advertisement,
+            'data' => $data,
         ]);
 
-        $safeRef  = str_replace(['/', '\\'], '_', $application->advertisement->reference_number ?? 'Ref');
-        $name     = str_replace(' ', '_', $p['first_name'] ?? 'Applicant');
+        $safeRef = str_replace(['/', '\\'], '_', $application->advertisement->reference_number ?? 'Ref');
+        $name = str_replace(' ', '_', $p['first_name'] ?? 'Applicant');
         $fileName = "Application_{$name}_{$safeRef}.pdf";
 
         return $pdf->stream($fileName);
@@ -324,12 +325,14 @@ class RecruitmentController extends Controller
     /**
      * Applicant: Securely export their own Excel data.
      */
-    public function exportExcel($id)
-    {
-        $application = JobApplication::where('user_id', Auth::id())->findOrFail($id);
+    public function exportExcel(Request $request, $id) // 1. Inject the Request here
+{
+    // Ensure the applicant actually owns this application
+    $application = JobApplication::where('user_id', Auth::id())->findOrFail($id);
 
-        return app(ApplicationController::class)->exportExcel($id);
-    }
+    // 2. Pass both $request and $id to the target controller
+    return app(ApplicationController::class)->exportExcel($request, $id);
+}
 
     /**
      * Show the application form wizard.
@@ -346,16 +349,16 @@ class RecruitmentController extends Controller
         }
 
         return Inertia::render('Applicant/ApplyForm', [
-            'advertisement'    => $advertisement,
-            'existingDraft'    => $application ? $application->form_data : null,
+            'advertisement' => $advertisement,
+            'existingDraft' => $application ? $application->form_data : null,
             'existingDepartment' => $application ? $application->department : '',
-            'existingGrade'    => $application ? $application->grade : '',
+            'existingGrade' => $application ? $application->grade : '',
         ]);
     }
 
-    // =========================================================================
+    
     // SAVE AS DRAFT — No required-field validation; just persist.
-    // =========================================================================
+    
     public function saveDraft(Request $request, Advertisement $advertisement)
     {
         $data = collect($request->only(['department', 'grade']))
@@ -366,7 +369,7 @@ class RecruitmentController extends Controller
 
         if ($request->hasFile('form_data.personal_details.profile_image')) {
             $path = $request->file('form_data.personal_details.profile_image')
-                ->store('applications/' . Auth::id() . "/{$advertisement->id}/photos", 'public');
+                ->store('applications/'.Auth::id()."/{$advertisement->id}/photos", 'public');
             $formData['personal_details']['profile_image'] = $path;
         }
 
@@ -374,14 +377,14 @@ class RecruitmentController extends Controller
             ['user_id' => Auth::id(), 'advertisement_id' => $advertisement->id],
             array_merge($data, [
                 'form_data' => $formData,
-                'status'    => 'draft',
+                'status' => 'draft',
             ])
         );
 
         return redirect()->back();
     }
 
-    // =========================================================================
+    
     // PER-STEP BACKEND VALIDATION (optional/future use).
     // All step rules are pure data checks that the frontend already enforces,
     // so this endpoint is NOT called during normal wizard navigation — backend
@@ -392,7 +395,7 @@ class RecruitmentController extends Controller
     //   Route::post('/jobs/{advertisement}/validate-step',
     //       [RecruitmentController::class, 'validateStep'])
     //       ->name('applicant.validateStep')->middleware('auth');
-    // =========================================================================
+    
     public function validateStep(Request $request, Advertisement $advertisement): JsonResponse
     {
         // Basic sanity: step must be a valid integer
@@ -404,31 +407,31 @@ class RecruitmentController extends Controller
         $errors = $this->errorsForStep($step, $request);
 
         return response()->json([
-            'valid'  => empty($errors),
+            'valid' => empty($errors),
             'errors' => $errors,
         ], empty($errors) ? 200 : 422);
     }
 
-    // =========================================================================
+    
     // FINAL SUBMIT — Full server-side validation across every required step.
-    // =========================================================================
+    
     public function submitApplication(Request $request, Advertisement $advertisement)
     {
-        // ── Top-level required fields ─────────────────────────────────────────
+        // ── Top-level required fields
         $validated = $request->validate([
             'department' => 'required|string|max:255',
-            'grade'      => 'required|string|max:255',
-            'form_data'  => 'required|array',
+            'grade' => 'required|string|max:255',
+            'form_data' => 'required|array',
         ]);
 
-        $user     = Auth::user();
+        $user = Auth::user();
         $formData = $validated['form_data'];
 
-        // ── Deep validation — mirror every frontend required field check ──────
+        // ── Deep validation — mirror every frontend required field check 
         $allErrors = [];
         foreach ([1, 2, 3, 4, 5, 8, 10] as $step) {
             $stepErrors = $this->errorsForStep($step, $request);
-            $allErrors  = array_merge($allErrors, $stepErrors);
+            $allErrors = array_merge($allErrors, $stepErrors);
         }
 
         // Declaration is required
@@ -448,7 +451,7 @@ class RecruitmentController extends Controller
             return back()->withErrors($allErrors)->withInput();
         }
 
-        // ── File size & MIME validation for uploaded documents ─────────────────
+        // ── File size & MIME validation for uploaded documents
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $key => $file) {
                 if (! $file->isValid()) {
@@ -478,7 +481,7 @@ class RecruitmentController extends Controller
 
         $documentPaths = $formData['uploaded_documents'] ?? [];
 
-        // ── Profile image ──────────────────────────────────────────────────────
+        // ── Profile image─
         if ($request->hasFile('form_data.personal_details.profile_image')) {
             $imgFile = $request->file('form_data.personal_details.profile_image');
             if (! in_array($imgFile->getMimeType(), ['image/jpeg', 'image/png', 'image/jpg'])) {
@@ -491,7 +494,7 @@ class RecruitmentController extends Controller
             $formData['personal_details']['profile_image'] = $path;
         }
 
-        // ── Supporting documents ───────────────────────────────────────────────
+        // ── Supporting documents
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $key => $file) {
                 $documentPaths[$key] = $file->store(
@@ -501,23 +504,23 @@ class RecruitmentController extends Controller
         }
         $formData['uploaded_documents'] = $documentPaths;
 
-        // ── Persist ────────────────────────────────────────────────────────────
+        // ── Persist─
         $application = JobApplication::updateOrCreate(
             ['user_id' => $user->id, 'advertisement_id' => $advertisement->id],
             [
                 'department' => $validated['department'],
-                'grade'      => $validated['grade'],
-                'form_data'  => $formData,
-                'status'     => 'submitted',
+                'grade' => $validated['grade'],
+                'form_data' => $formData,
+                'status' => 'submitted',
             ]
         );
 
-        // ── Generate & store PDF ───────────────────────────────────────────────
+        // ── Generate & store PDF
         $pdf = Pdf::loadView('pdf.application_format', [
-            'application'  => $application,
-            'user'         => $user,
-            'advertisement'=> $advertisement,
-            'data'         => $formData,
+            'application' => $application,
+            'user' => $user,
+            'advertisement' => $advertisement,
+            'data' => $formData,
         ]);
 
         Storage::disk('public')->put(
@@ -525,14 +528,14 @@ class RecruitmentController extends Controller
             $pdf->output()
         );
 
-        // ── Confirmation email to applicant ────────────────────────────────────
+        // ── Confirmation email to applicant─
         Mail::to($user->email)->send(new ApplicationSubmitted($application, $pdf->output()));
 
-        // ── Referee notification emails ────────────────────────────────────────
-        $referees      = $formData['referees_section']['referees'] ?? [];
+        // ── Referee notification emails
+        $referees = $formData['referees_section']['referees'] ?? [];
         $applicantName = trim(
-            ($formData['personal_details']['first_name'] ?? '') . ' ' .
-            ($formData['personal_details']['last_name']  ?? '')
+            ($formData['personal_details']['first_name'] ?? '').' '.
+            ($formData['personal_details']['last_name'] ?? '')
         );
 
         foreach ($referees as $referee) {
@@ -547,9 +550,9 @@ class RecruitmentController extends Controller
             ->with('success', 'Application Submitted! A confirmation copy has been sent to your email.');
     }
 
-    // =========================================================================
+    
     // ADMIN — Advertisement management
-    // =========================================================================
+    
 
     public function adminIndex()
     {
@@ -560,27 +563,29 @@ class RecruitmentController extends Controller
 
     public function create()
     {
-        return Inertia::render('Admin/Jobs/Create');
+        return Inertia::render('Admin/Jobs/Create', [
+            'departments' => Department::orderBy('name')->get(),
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'reference_number' => 'required|string|unique:advertisements,reference_number',
-            'title'            => 'required|string|max:255',
-            'deadline'         => 'required|date',
-            'document'         => 'required|file|mimes:pdf|max:5120',
-            'departments'      => 'required|array|min:1',
+            'title' => 'required|string|max:255',
+            'deadline' => 'required|date',
+            'document' => 'required|file|mimes:pdf|max:5120',
+            'departments' => 'required|array|min:1',
         ]);
 
         $filePath = $request->file('document')->store('advertisements', 'public');
 
         Advertisement::create([
             'reference_number' => $validated['reference_number'],
-            'title'            => $validated['title'],
-            'deadline'         => $validated['deadline'],
-            'departments'      => $validated['departments'],
-            'document_path'    => $filePath,
+            'title' => $validated['title'],
+            'deadline' => $validated['deadline'],
+            'departments' => $validated['departments'],
+            'document_path' => $filePath,
         ]);
 
         return redirect()->route('admin.jobs.create')

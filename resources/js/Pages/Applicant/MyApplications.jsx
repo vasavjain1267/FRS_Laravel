@@ -13,12 +13,16 @@ import {
     Building2,
     AlertCircle,
     Eye,
+    XCircle
 } from "lucide-react";
 
 export default function MyApplications({ applications }) {
+    // Ensure applications is an array (handle pagination if necessary)
+    const appsList = Array.isArray(applications) ? applications : applications?.data || [];
+
     // Separate drafts from submitted applications
-    const drafts = applications.filter((app) => app.status === "draft");
-    const submitted = applications.filter((app) => app.status !== "draft");
+    const drafts = appsList.filter((app) => app.status === "draft");
+    const submitted = appsList.filter((app) => app.status !== "draft");
 
     return (
         <ApplicantLayout>
@@ -35,10 +39,10 @@ export default function MyApplications({ applications }) {
                     </p>
                 </div>
 
-                {applications.length === 0 ? (
-                    <Card className="border-dashed border-2 border-slate-200 bg-slate-50">
+                {appsList.length === 0 ? (
+                    <Card className="border-dashed border-2 border-slate-200 bg-slate-50 shadow-none">
                         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                            <div className="h-16 w-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
                                 <FileText className="h-8 w-8" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-900 mb-2">
@@ -50,7 +54,7 @@ export default function MyApplications({ applications }) {
                             </p>
                             <Button
                                 asChild
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-indigo-600 hover:bg-indigo-700"
                             >
                                 <Link href={route("dashboard")}>
                                     <Briefcase className="h-4 w-4 mr-2" /> View
@@ -73,7 +77,6 @@ export default function MyApplications({ applications }) {
                                         <ApplicationCard
                                             key={app.id}
                                             app={app}
-                                            type="draft"
                                         />
                                     ))}
                                 </div>
@@ -84,7 +87,7 @@ export default function MyApplications({ applications }) {
                         {submitted.length > 0 && (
                             <section>
                                 <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                                    <CheckCircle2 className="h-5 w-5 mr-2 text-emerald-500" />{" "}
+                                    <CheckCircle2 className="h-5 w-5 mr-2 text-indigo-500" />{" "}
                                     Submitted Applications ({submitted.length})
                                 </h2>
                                 <div className="grid gap-4 md:grid-cols-2">
@@ -92,7 +95,6 @@ export default function MyApplications({ applications }) {
                                         <ApplicationCard
                                             key={app.id}
                                             app={app}
-                                            type="submitted"
                                         />
                                     ))}
                                 </div>
@@ -106,39 +108,71 @@ export default function MyApplications({ applications }) {
 }
 
 // --- Reusable Card Component ---
-function ApplicationCard({ app, type }) {
-    const isDraft = type === "draft";
+function ApplicationCard({ app }) {
+    const status = app.status; // draft, submitted, shortlisted, rejected
+
+    // Theme configuration based on status
+    const theme = {
+        draft: {
+            border: "border-amber-200",
+            bg: "bg-amber-50/40",
+            indicator: "bg-amber-400",
+            badge: "bg-amber-100 text-amber-700 border-amber-200",
+            label: "Draft",
+        },
+        submitted: {
+            border: "border-blue-200",
+            bg: "bg-white",
+            indicator: "bg-blue-500",
+            badge: "bg-blue-100 text-blue-700 border-blue-200",
+            label: "Under Review",
+        },
+        shortlisted: {
+            border: "border-emerald-300",
+            bg: "bg-emerald-50/40",
+            indicator: "bg-emerald-500",
+            badge: "bg-emerald-100 text-emerald-800 border-emerald-300",
+            label: "Shortlisted",
+        },
+        rejected: {
+            border: "border-rose-200",
+            bg: "bg-rose-50/30",
+            indicator: "bg-rose-500",
+            badge: "bg-rose-100 text-rose-700 border-rose-200",
+            label: "Not Selected",
+        },
+    };
+
+    const currentTheme = theme[status] || theme.submitted;
+    const isDraft = status === "draft";
 
     return (
         <Card
-            className={`relative overflow-hidden transition-all hover:shadow-md ${isDraft ? "border-amber-200 bg-amber-50/30" : "border-slate-200 bg-white"}`}
+            className={`relative overflow-hidden transition-all hover:shadow-md ${currentTheme.border} ${currentTheme.bg}`}
         >
+            {/* Left Color Indicator Bar */}
             <div
-                className={`absolute top-0 left-0 w-1 h-full ${isDraft ? "bg-amber-400" : "bg-emerald-500"}`}
+                className={`absolute top-0 left-0 w-1 h-full ${currentTheme.indicator}`}
             />
 
-            <CardContent className="p-5 pl-6">
+            <CardContent className="p-5 pl-6 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1 pr-4">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            Ref: {app.advertisement?.reference_number}
+                            Ref: {app.advertisement?.reference_number || "N/A"}
                         </span>
                         <h3 className="font-bold text-slate-900 leading-tight">
-                            {app.advertisement?.title}
+                            {app.advertisement?.title || "Untitled Application"}
                         </h3>
                     </div>
                     <span
-                        className={`px-2.5 py-1 text-xs font-bold uppercase rounded-md border shrink-0 ${
-                            isDraft
-                                ? "bg-amber-100 text-amber-700 border-amber-200"
-                                : "bg-emerald-100 text-emerald-700 border-emerald-200"
-                        }`}
+                        className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border shrink-0 ${currentTheme.badge}`}
                     >
-                        {app.status}
+                        {currentTheme.label}
                     </span>
                 </div>
 
-                <div className="space-y-2 mb-6">
+                <div className="space-y-2 mb-4 flex-grow">
                     <div className="flex items-center text-sm text-slate-600">
                         <Building2 className="h-4 w-4 mr-2 text-slate-400 shrink-0" />
                         <span className="truncate">
@@ -149,74 +183,74 @@ function ApplicationCard({ app, type }) {
                         <Briefcase className="h-4 w-4 mr-2 text-slate-400 shrink-0" />
                         <span>{app.grade || "Grade not selected"}</span>
                     </div>
-                    <div className="flex items-center text-sm text-slate-500">
-                        <CalendarDays className="h-4 w-4 mr-2 text-slate-400 shrink-0" />
-                        <span>Last updated: {app.updated_at}</span>
+                    <div className="flex items-center text-xs text-slate-400">
+                        <CalendarDays className="h-3.5 w-3.5 mr-2 shrink-0" />
+                        <span>Last updated: {new Date(app.updated_at).toLocaleDateString('en-GB')}</span>
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                {/* HOD Feedback Banners */}
+                {status === "shortlisted" && (
+                    <div className="mb-4 bg-emerald-100/50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-800 flex gap-2 items-start">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                        <p><strong>Congratulations!</strong> You have been shortlisted. The department will contact you soon.</p>
+                    </div>
+                )}
+                {status === "rejected" && (
+                    <div className="mb-4 bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 flex gap-2 items-start">
+                        <XCircle className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
+                        <p>Thank you for your interest. Unfortunately, you were not selected for further progression.</p>
+                    </div>
+                )}
+
+                {/* Actions Footer */}
+                <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between mt-auto">
                     {isDraft ? (
                         <>
-                            <div className="flex items-center text-xs font-medium text-amber-600 bg-amber-100 px-2 py-1 rounded">
-                                <AlertCircle className="h-3 w-3 mr-1" /> Step{" "}
-                                {app.current_step} of 11
+                            <div className="flex items-center text-xs font-medium text-amber-700 bg-amber-100/50 border border-amber-200 px-2 py-1 rounded">
+                                <AlertCircle className="h-3 w-3 mr-1.5" /> Step{" "}
+                                {app.form_data?.current_step || 1} of 11
                             </div>
                             <Button
                                 asChild
                                 size="sm"
-                                className="bg-amber-500 hover:bg-amber-600 text-white"
+                                className="bg-amber-500 hover:bg-amber-600 text-white shadow-none"
                             >
-                                <Link
-                                    href={route(
-                                        "applicant.apply",
-                                        app.advertisement?.id,
-                                    )}
-                                >
-                                    Resume Application{" "}
-                                    <ArrowRight className="h-4 w-4 ml-1.5" />
+                                <Link href={`/apply/${app.advertisement_id}`}>
+                                    Resume Draft <ArrowRight className="h-4 w-4 ml-1.5" />
                                 </Link>
                             </Button>
                         </>
                     ) : (
                         <div className="w-full flex items-center justify-between">
-                            <span className="text-xs text-slate-500 font-medium">
-                                Locked & Under Review
+                            <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                                {status === "submitted" ? (
+                                    <><Clock className="h-3.5 w-3.5" /> Locked & Under Review</>
+                                ) : (
+                                    <><CheckCircle2 className="h-3.5 w-3.5" /> Application Closed</>
+                                )}
                             </span>
                             <div className="flex gap-2">
                                 <Button
                                     asChild
                                     size="sm"
                                     variant="outline"
-                                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                                    className="border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-none"
                                 >
-                                    <Link
-                                        href={route(
-                                            "applicant.applications.show",
-                                            app.id,
-                                        )}
-                                    >
-                                        <Eye className="h-4 w-4 mr-1.5 text-indigo-600" />{" "}
-                                        View
+                                    <Link href={`/applications/${app.id}`}>
+                                        <Eye className="h-4 w-4 mr-1.5 text-indigo-500" /> View
                                     </Link>
                                 </Button>
-                                {app.has_pdf && (
-                                    <Button
-                                        asChild
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                                    >
-                                        <a
-                                            href={app.pdf_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            <Download className="h-4 w-4 mr-1.5 text-blue-600" />{" "}
-                                            PDF
-                                        </a>
-                                    </Button>
-                                )}
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-none"
+                                >
+                                    <a href={`/applications/${app.id}/export/pdf`} target="_blank" rel="noreferrer">
+                                        <Download className="h-4 w-4 mr-1.5 text-red-500" /> PDF
+                                    </a>
+                                </Button>
                             </div>
                         </div>
                     )}

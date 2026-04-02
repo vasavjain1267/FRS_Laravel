@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Advertisement;
+use App\Models\Department;
 use App\Models\JobApplication;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -12,15 +13,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApplicationController extends Controller
 {
+    /**
+     * Enforce departmental security boundaries.
+     * Admins see all applications. HODs only see applications for their assigned department.
+     */
+    private function getScopedQuery(Request $request)
+    {
+        $query = JobApplication::with(['user', 'advertisement']);
+
+        if ($request->user()->role === 'hod') {
+            $query->where('department', $request->user()->department);
+        }
+
+        return $query;
+    }
+
     public function index(Request $request)
     {
-        $query = JobApplication::with(['user', 'advertisement'])
+        // 1. Secure the base query
+        $query = $this->getScopedQuery($request)
             ->whereIn('status', ['submitted', 'shortlisted', 'rejected']);
 
         if ($request->filled('advertisement_id')) {
             $query->where('advertisement_id', $request->advertisement_id);
         }
 
+        // If user is HOD, this filter is somewhat redundant but safe. If Admin, it filters dynamically.
         if ($request->filled('department')) {
             $query->where('department', $request->department);
         }
@@ -29,21 +47,28 @@ class ApplicationController extends Controller
             $query->where('status', $request->status);
         }
 
-        $applications = $query->latest()->paginate(20);
+        $applications = $query->latest()->paginate(20)->withQueryString();
         $advertisements = Advertisement::select('id', 'title', 'reference_number')->get();
 
-        return Inertia::render('Admin/Applications/Index', [
+        // Dynamically choose view folder
+        $viewFolder = $request->user()->role === 'admin' ? 'Admin' : 'Hod';
+
+        return Inertia::render("{$viewFolder}/Applications/Index", [
             'applications' => $applications,
-            'advertisements' => $advertisements,
+            'advertisements' => Advertisement::select('id', 'title', 'reference_number')->get(),
+            'departments' => Department::orderBy('name')->get(),
             'filters' => $request->only(['advertisement_id', 'department', 'status']),
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $application = JobApplication::with(['user', 'advertisement'])->findOrFail($id);
+        $application = clone $this->getScopedQuery($request)->findOrFail($id);
 
-        return Inertia::render('Admin/Applications/Show', [
+        // Dynamically choose view folder
+        $viewFolder = $request->user()->role === 'admin' ? 'Admin' : 'Hod';
+
+        return Inertia::render("{$viewFolder}/Applications/Show", [
             'application' => $application,
         ]);
     }
@@ -54,19 +79,21 @@ class ApplicationController extends Controller
             'status' => 'required|in:submitted,shortlisted,rejected',
         ]);
 
-        $application = JobApplication::findOrFail($id);
+        $application = clone $this->getScopedQuery($request)->findOrFail($id);
+
         $application->update(['status' => $request->status]);
 
-        return back()->with('success', 'Application status updated.');
+        return back()->with('success', "Application status updated to {$request->status}.");
     }
 
     /**
      * Generate and stream the PDF on the fly.
      * Uses the comprehensive application_format blade template.
      */
-    public function exportPdf($id)
+    public function exportPdf(Request $request, $id)
     {
-        $application = JobApplication::with(['user', 'advertisement'])->findOrFail($id);
+        $application = clone $this->getScopedQuery($request)->findOrFail($id);
+
         $data = $application->form_data ?? [];
         $p = $data['personal_details'] ?? [];
 
@@ -87,9 +114,10 @@ class ApplicationController extends Controller
     /**
      * Export a comprehensive CSV/Excel covering every field from every step.
      */
-    public function exportExcel($id)
+    public function exportExcel(Request $request, $id)
     {
-        $application = JobApplication::with(['user', 'advertisement'])->findOrFail($id);
+        $application = clone $this->getScopedQuery($request)->findOrFail($id);
+
         $data = $application->form_data ?? [];
         $p = $data['personal_details'] ?? [];
 

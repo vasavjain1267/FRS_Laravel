@@ -325,24 +325,33 @@ export default function Login() {
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 text-center">
                                 Demo Credentials
                             </p>
-                            <div className="grid grid-cols-2 gap-4 text-xs">
-                                <div className="bg-white p-3 rounded-md border border-slate-100 shadow-sm">
+                            <div className="grid grid-cols-3 gap-3 text-xs">
+                                <div className="bg-white p-2.5 rounded-md border border-slate-100 shadow-sm">
                                     <p className="font-bold text-slate-900 mb-1">
                                         Applicant
                                     </p>
-                                    <p className="text-slate-500 font-medium">
+                                    <p className="text-slate-500 font-medium truncate">
                                         applicant@test.com
                                     </p>
                                     <p className="text-slate-400">password</p>
                                 </div>
-                                <div className="bg-white p-3 rounded-md border border-slate-100 shadow-sm">
+                                <div className="bg-white p-2.5 rounded-md border border-slate-100 shadow-sm">
                                     <p className="font-bold text-slate-900 mb-1">
                                         Admin
                                     </p>
-                                    <p className="text-slate-500 font-medium">
+                                    <p className="text-slate-500 font-medium truncate">
                                         admin@iiti.ac.in
                                     </p>
                                     <p className="text-slate-400">password</p>
+                                </div>
+                                <div className="bg-white p-2.5 rounded-md border border-slate-100 shadow-sm">
+                                    <p className="font-bold text-slate-900 mb-1">
+                                        HOD
+                                    </p>
+                                    <p className="text-slate-500 font-medium truncate">
+                                        hod.cse@iiti.ac.in
+                                    </p>
+                                    <p className="text-slate-400">password123</p>
                                 </div>
                             </div>
                         </CardContent>

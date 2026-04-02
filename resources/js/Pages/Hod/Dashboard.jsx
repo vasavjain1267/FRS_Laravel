@@ -1,4 +1,4 @@
-import AdminLayout from "@/Layouts/AdminLayout";
+import HodLayout from "@/Layouts/HodLayout";
 import { Head, Link } from "@inertiajs/react";
 import {
     BarChart,
@@ -20,6 +20,7 @@ const STATUS_COLORS = {
     submitted: "#6366f1",
     shortlisted: "#22c55e",
     rejected: "#ef4444",
+    draft: "#94a3b8",
 };
 
 const PIE_COLORS = [
@@ -36,15 +37,14 @@ const statusBadge = {
     submitted: "bg-blue-100 text-blue-700",
     shortlisted: "bg-green-100 text-green-700",
     rejected: "bg-red-100 text-red-600",
+    draft: "bg-gray-100 text-gray-500",
 };
 
-export default function Dashboard({
+export default function HodDashboard({
     stats,
-    byDepartment,
     byAdvertisement,
     overTime,
     recentApplications,
-    recentAdvertisements,
 }) {
     const statusPieData = [
         {
@@ -64,15 +64,6 @@ export default function Dashboard({
         },
     ].filter((d) => d.value > 0);
 
-    const deptBarData = byDepartment.map((d) => ({
-        name:
-            d.department.length > 20
-                ? d.department.substring(0, 20) + "…"
-                : d.department,
-        fullName: d.department,
-        count: d.count,
-    }));
-
     const advBarData = byAdvertisement.map((d) => ({
         name: d.advertisement
             ? d.advertisement.reference_number
@@ -90,28 +81,28 @@ export default function Dashboard({
     }));
 
     return (
-        <AdminLayout>
-            <Head title="Admin Dashboard" />
+        <HodLayout>
+            <Head title="Department Dashboard" />
 
-            <div className="p-6 space-y-8">
+            <div className="p-6 space-y-8 max-w-7xl mx-auto">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">
-                        Dashboard Overview
+                        Department Overview
                     </h1>
                     <p className="text-gray-500 text-sm mt-1">
-                        Faculty Recruitment System — IIT Indore
+                        Track application statuses for your discipline.
                     </p>
                 </div>
 
                 {/* Stat Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard
                         label="Total Applications"
                         value={stats.totalApplications}
                         color="bg-indigo-500"
                     />
                     <StatCard
-                        label="In Review"
+                        label="Awaiting Review"
                         value={stats.submitted}
                         color="bg-blue-500"
                     />
@@ -125,29 +116,14 @@ export default function Dashboard({
                         value={stats.rejected}
                         color="bg-red-500"
                     />
-                    <StatCard
-                        label="Active Ads"
-                        value={stats.activeAdvertisements}
-                        color="bg-amber-500"
-                    />
-                    <StatCard
-                        label="Total Ads"
-                        value={stats.totalAdvertisements}
-                        color="bg-purple-500"
-                    />
-                    <StatCard
-                        label="Total Applicants"
-                        value={stats.totalApplicants}
-                        color="bg-teal-500"
-                    />
                 </div>
 
                 {/* Row 1: Status Pie + Timeline */}
                 <div className="grid md:grid-cols-2 gap-6">
                     {/* Status Breakdown Pie */}
-                    <div className="bg-white rounded-xl shadow p-5">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                         <h2 className="font-semibold text-gray-700 mb-4">
-                            Application Status Breakdown
+                            Status Breakdown
                         </h2>
                         {statusPieData.length > 0 ? (
                             <ResponsiveContainer width="100%" height={260}>
@@ -178,9 +154,9 @@ export default function Dashboard({
                     </div>
 
                     {/* Applications Over Time */}
-                    <div className="bg-white rounded-xl shadow p-5">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                         <h2 className="font-semibold text-gray-700 mb-4">
-                            Applications Over Last 30 Days
+                            Application Volume (Last 30 Days)
                         </h2>
                         {timelineData.length > 0 ? (
                             <ResponsiveContainer width="100%" height={260}>
@@ -213,47 +189,10 @@ export default function Dashboard({
                     </div>
                 </div>
 
-                {/* Row 2: By Department + By Advertisement */}
+                {/* Row 2: By Advertisement + Recent Applications */}
                 <div className="grid md:grid-cols-2 gap-6">
-                    {/* By Department */}
-                    <div className="bg-white rounded-xl shadow p-5">
-                        <h2 className="font-semibold text-gray-700 mb-4">
-                            Applications by Department
-                        </h2>
-                        {deptBarData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={260}>
-                                <BarChart data={deptBarData} layout="vertical">
-                                    <XAxis
-                                        type="number"
-                                        tick={{ fontSize: 11 }}
-                                        allowDecimals={false}
-                                    />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="name"
-                                        tick={{ fontSize: 11 }}
-                                        width={130}
-                                    />
-                                    <Tooltip
-                                        formatter={(value, name, props) => [
-                                            value,
-                                            props.payload.fullName,
-                                        ]}
-                                    />
-                                    <Bar
-                                        dataKey="count"
-                                        fill="#6366f1"
-                                        radius={[0, 4, 4, 0]}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <EmptyChart />
-                        )}
-                    </div>
-
                     {/* By Advertisement */}
-                    <div className="bg-white rounded-xl shadow p-5">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                         <h2 className="font-semibold text-gray-700 mb-4">
                             Applications by Advertisement
                         </h2>
@@ -297,18 +236,15 @@ export default function Dashboard({
                             <EmptyChart />
                         )}
                     </div>
-                </div>
 
-                {/* Row 3: Recent Applications + Recent Advertisements */}
-                <div className="grid md:grid-cols-2 gap-6">
                     {/* Recent Applications */}
-                    <div className="bg-white rounded-xl shadow p-5">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="font-semibold text-gray-700">
                                 Recent Applications
                             </h2>
                             <Link
-                                href="/admin/applications"
+                                href="/hod/applications"
                                 className="text-sm text-indigo-600 hover:underline"
                             >
                                 View all →
@@ -328,21 +264,21 @@ export default function Dashboard({
                                             <p className="text-xs text-gray-400">
                                                 {app.advertisement?.title}
                                             </p>
-                                            <p className="text-xs text-gray-400">
-                                                {app.department}
+                                            <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                                                {app.grade}
                                             </p>
                                         </div>
                                         <div className="flex flex-col items-end gap-1">
                                             <span
-                                                className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge[app.status]}`}
+                                                className={`text-xs px-2 py-1 rounded-full font-medium uppercase tracking-wider ${statusBadge[app.status]}`}
                                             >
                                                 {app.status}
                                             </span>
                                             <Link
-                                                href={`/admin/applications/${app.id}`}
-                                                className="text-xs text-indigo-600 hover:underline"
+                                                href={`/hod/applications/${app.id}`}
+                                                className="text-xs text-indigo-600 hover:underline mt-1"
                                             >
-                                                View
+                                                Review
                                             </Link>
                                         </div>
                                     </li>
@@ -354,64 +290,21 @@ export default function Dashboard({
                             )}
                         </ul>
                     </div>
-
-                    {/* Recent Advertisements */}
-                    <div className="bg-white rounded-xl shadow p-5">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="font-semibold text-gray-700">
-                                Recent Advertisements
-                            </h2>
-                            <Link
-                                href="/admin/jobs"
-                                className="text-sm text-indigo-600 hover:underline"
-                            >
-                                View all →
-                            </Link>
-                        </div>
-                        <ul className="divide-y">
-                            {recentAdvertisements.map((ad) => (
-                                <li
-                                    key={ad.id}
-                                    className="py-3 flex justify-between items-center"
-                                >
-                                    <div>
-                                        <p className="font-medium text-gray-800 text-sm">
-                                            {ad.title}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                            Ref: {ad.reference_number}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                            Deadline:{" "}
-                                            {new Date(
-                                                ad.deadline,
-                                            ).toLocaleDateString("en-GB", {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                            })}
-                                        </p>
-                                    </div>
-                                    <span
-                                        className={`text-xs px-2 py-1 rounded-full font-medium ${ad.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
-                                    >
-                                        {ad.is_active ? "Active" : "Inactive"}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
                 </div>
             </div>
-        </AdminLayout>
+        </HodLayout>
     );
 }
 
 function StatCard({ label, value, color }) {
     return (
-        <div className={`${color} text-white rounded-xl p-5 shadow`}>
-            <p className="text-sm opacity-80">{label}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
+        <div
+            className={`${color} text-white rounded-xl p-5 md:p-6 shadow-sm flex flex-col justify-between h-full`}
+        >
+            <p className="text-sm md:text-base opacity-90 font-medium leading-tight mb-2">
+                {label}
+            </p>
+            <p className="text-3xl md:text-4xl font-black">{value}</p>
         </div>
     );
 }

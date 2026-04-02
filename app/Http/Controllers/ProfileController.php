@@ -14,6 +14,7 @@ class ProfileController extends Controller
 {
     public function edit(Request $request): Response
     {
+        // This is specifically the Applicant's master profile view
         return Inertia::render('Profile/MasterProfile', [
             'status' => session('status'),
         ]);
@@ -23,43 +24,55 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        // 1. Validate the incoming request
-        // This acts as a secondary shield to our frontend validation
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'profile_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'], // Max 2MB (2048 KB)
-            // You can add validation for phone numbers, dates, etc., here if needed
         ]);
 
-        // 2. Update Core User (Name/Email)
         $user->update([
             'name' => $request->input('name', $user->name),
         ]);
 
-        // 3. Separate profile data
-        // Exclude Inertia's _method and the file itself from the raw mass-assignment array
-        $profileData = $request->except(['name', 'email', 'profile_image', '_method']);
+        if ($user->role === 'applicant') {
+            $request->validate([
+                'profile_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            ]);
 
-        // 4. Handle File Uploads for the Profile
-        if ($request->hasFile('profile_image')) {
-            $currentProfile = $user->applicantProfile;
+            $profileData = $request->except(['name', 'email', 'profile_image', '_method']);
 
-            // Delete the old image if it exists
-            if ($currentProfile && $currentProfile->photo_path) {
-                Storage::disk('public')->delete($currentProfile->photo_path);
+            // Handle File Uploads for the Applicant Profile
+            if ($request->hasFile('profile_image')) {
+                $currentProfile = $user->applicantProfile;
+
+                // Delete the old image if it exists
+                if ($currentProfile && $currentProfile->photo_path) {
+                    Storage::disk('public')->delete($currentProfile->photo_path);
+                }
+
+                // Store the new image
+                $profileData['photo_path'] = $request->file('profile_image')->store("profiles/{$user->id}", 'public');
             }
 
-            // Store the new image and map it to your database's `photo_path` column
-            $profileData['photo_path'] = $request->file('profile_image')->store("profiles/{$user->id}", 'public');
+            // Update or Create the 1-to-1 Applicant Profile
+            $user->applicantProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                $profileData
+            );
+
+            // Redirect back to Applicant Master Profile
+            return Redirect::route('profile.edit')->with('success', 'Profile updated successfully.');
         }
 
-        // 5. Update or Create the 1-to-1 Applicant Profile
-        $user->applicantProfile()->updateOrCreate(
-            ['user_id' => $user->id],
-            $profileData
-        );
+        // --- Admin & HOD Redirections ---
+        if ($user->role === 'admin') {
+            return Redirect::route('admin.settings')->with('success', 'Profile updated successfully.');
+        }
 
-        return Redirect::route('profile.edit')->with('success', 'Profile updated successfully.');
+        if ($user->role === 'hod') {
+            return Redirect::route('hod.settings')->with('success', 'Profile updated successfully.');
+        }
+
+        // Fallback for any unknown roles
+        return Redirect::route('dashboard')->with('success', 'Profile updated successfully.');
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -67,14 +80,17 @@ class ProfileController extends Controller
         $request->validate(['password' => ['required', 'current_password']]);
         $user = $request->user();
 
-        // Optional: Clean up the user's profile image folder before deleting the user
+        // Clean up the user's profile image folder before deleting the user (if they have one)
         $profile = $user->applicantProfile;
-        if ($profile && $profile->profile_image_path) {
+        if ($profile && $profile->photo_path) {
             Storage::disk('public')->deleteDirectory("profiles/{$user->id}");
         }
 
         Auth::logout();
-        $user->delete(); // This automatically deletes their ApplicantProfile too because of cascadeOnDelete!
+
+        // This automatically deletes their ApplicantProfile too because of cascadeOnDelete in the migration
+        $user->delete();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

@@ -22,7 +22,7 @@ export default function AdminLayout({ children }) {
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const isAdmin = role === 'admin';
+    const isAdmin = role === "admin";
 
     const navLinks = [
         {
@@ -62,12 +62,12 @@ export default function AdminLayout({ children }) {
         },
         {
             name: "Portal Settings",
-            href: "#",
+            href: route("admin.settings"),
             icon: Settings,
-            active: false,
+            active: route().current("admin.settings"),
             show: true,
         },
-    ].filter(link => link.show);
+    ].filter((link) => link.show);
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
@@ -142,9 +142,7 @@ export default function AdminLayout({ children }) {
                     </div>
 
                     <button
-                        onClick={() =>
-                            setIsMobileMenuOpen(!isMobileMenuOpen)
-                        }
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
                         {isMobileMenuOpen ? <X /> : <Menu />}
                     </button>
