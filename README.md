@@ -7,7 +7,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Sail-2496ED?style=for-the-badge&logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-A high-performance, multi-role recruitment engine designed to streamline academic hiring through an intuitive, persistent 11-step application workflow. Built for IIT Indore, it bridges the gap between complex data collection and seamless user experience using the Laravel-Inertia stack.
+FRS is an enterprise-grade recruitment engine designed to modernize academic hiring workflows through secure, state-persistent application pipelines. Built for IIT Indore, it empowers institutions to manage high-volume faculty applications with departmental precision, bridging the gap between complex data collection and rapid, role-based decision-making.
 
 ## Tech Stack
 
@@ -50,53 +50,85 @@ sequenceDiagram
     autonumber
     participant A as Admin
     participant App as Applicant
+    participant HOD as Head of Department
     participant DB as Database (MySQL 8.4)
     participant M as Mailpit (SMTP)
 
     Note over A, DB: 1. Advertisement Phase
-    A->>DB: Post Advertisement (Title, Deadline, Departments)
+    A->>DB: Post Job (Consolidated PDF + Dept/Grade Mapping)
     
     Note over App, DB: 2. Application Phase (11-Steps)
     App->>DB: Initialize Application
     
-    rect rgb(249, 249, 249)
+    rect rgb(240, 246, 255)
         Note right of App: Persistence Layer
-        App->>DB: Save as Draft (Stores partial form_data JSON)
-        DB-->>App: Acknowledge Save
+        App->>DB: "Save & Next" (Incremental JSON Sync)
+        DB-->>App: State Acknowledged
     end
 
-    Note over App, DB: 3. Submission & Validation
-    App->>DB: Final Submit (Step 11 + PDF Uploads)
-    DB->>DB: Deep Server-Side Validation
-    DB->>DB: Generate Final Application PDF
+    Note over App, DB: 3. Final Submission
+    App->>DB: Final Submit (Step 11 + File Hardening)
     
     par Async Notifications
-        DB->>M: Send Confirmation to Applicant
-        DB->>M: Notify 3+ Referees for Reference
+        DB->>M: Notify Applicant (Confirmation)
+        DB->>M: Notify Referees (Request for Reference)
     end
 
-    Note over A, DB: 4. Review Phase (Roadmapped)
-    A->>DB: Filter & Export applications by Department
+    Note over HOD, DB: 4. Departmental Review
+    HOD->>DB: Access Dept-Scoped Dashboard
+    DB-->>HOD: Filtered Applications (Specific Discipline Only)
+    HOD->>HOD: Review Detailed Dossier (Steps 1-11)
+    HOD->>DB: Transition Status (Shortlist / Reject)
+
+    Note over A, DB: 5. Institutional Finalization
+    A->>DB: Global Export (CSV/PDF) for Interview Panel
 ```
 
 ## Feature Deep-Dive
 
 This section highlights the specialized functionalities implemented for each user role, focusing on the technical architecture of the recruitment lifecycle.
 
-### Admin: Oversight & Management
-* **Advertisement Management**: Dynamic creation and management of job postings, including title, deadline, and reference number tracking.
-* **Multi-Discipline Targeting**: Capability to assign a single advertisement to multiple departments simultaneously to reach diverse academic pools.
-* **Document Hosting**: Automated handling of official PDF advertisement uploads, securely stored and served from the public disk.
+### Admin: Institutional Oversight
+
+- **Advertisement Management**  
+  Dynamic creation of job postings with support for consolidated PDF uploads and multi-department targeting.
+
+- **Dynamic Discipline Configuration**  
+  A full CRUD interface for managing the institution's department list, ensuring the recruitment pool stays aligned with academic restructuring.
+
+- **HOD Assignment Matrix**  
+  Granular control over faculty roles, allowing admins to promote users to HOD status and bind them to specific departmental silos.
+
+- **Global Dossier Access**  
+  Cross-departmental search and filtering of all submitted applications with bulk export capabilities for institutional reporting.
 
 ### Applicant: The 11-Step Wizard
-* **Form Persistence**: Utilizes a `json` column (`form_data`) in the database to store partial application data, enabling a seamless "Save as Draft" experience across all 11 steps.
-* **Dual-Layer Validation**: Implements a robust validation system where the backend mirrors frontend logic to ensure data integrity before final submission.
-* **Referee Automation**: Integrated dispatch of `RefereeNotification` emails to all listed referees immediately upon application finalization.
-* **PDF Export Engine**: Automated generation of a professionally formatted application summary using `dompdf` for candidate records and institutional filing.
 
-### HOD: Departmental Review (Roadmapped)
-* **Scoped Dashboards**: (Planned) Discipline-specific views that filter incoming applications based on the HOD's assigned department.
-* **Decision Pipeline**: (Planned) Interface for transitioning applications from "Submitted" to "Shortlisted" or "Rejected" status.
+- **State Persistence Layer**  
+  Utilizes a `json` column (`form_data`) to store dense academic data (publications, patents, research plans), enabling a seamless "resume-anytime" draft experience.
+
+- **Role-Specific Dashboard**  
+  Real-time tracking of application statuses (*Submitted, Shortlisted, Rejected*) and a centralized hub for downloading generated dossiers.
+
+- **Referee Automation**  
+  Integrated dispatch of `RefereeNotification` emails to all listed referees via Mailpit-verified SMTP triggers upon finalization.
+
+- **Export Engine**  
+  On-the-fly generation of professionally formatted PDFs using `dompdf` and detailed Excel dossiers for personal record-keeping.
+
+### HOD: Departmental Review 
+
+- **Security Scoping**  
+  Architectural implementation of departmental silos; HODs are locked into their assigned discipline via backend query scoping, preventing unauthorized access to other departments.
+
+- **Dossier Deep-Dive**  
+  A specialized review interface built with collapsible Shadcn/UI components to navigate complex 11-step applicant data efficiently.
+
+- **Status Transition Workflow**  
+  Single-click decision pipeline allowing HODs to move applicants from *"Awaiting Review"* to *"Shortlisted"* or *"Rejected"* states.
+
+- **Committee Exports**  
+  Ability to generate department-specific CSV summaries for offline review during faculty selection committee meetings.
 
 ## Installation 
 
@@ -176,26 +208,28 @@ The frontend is organized to maintain a clear separation between reusable UI com
 
 ```text
 resources/js
-├── Components/
-│   ├── ui/                 # Shadcn/UI primitive components (Button, Card, Input, etc.)
-│   ├── ApplicationLogo.jsx
-│   ├── ToastListener.jsx   # Global handler for Inertia flash messages
-│   └── ...                 # Other reusable React components
-├── Layouts/
-│   ├── AdminLayout.jsx     # Sidebar and navigation for administrative roles
-│   ├── ApplicantLayout.jsx # Specialized layout for the 11-step wizard
-│   └── GuestLayout.jsx     # Layout for login/registration pages
+├── app.jsx                 # Inertia.js bootstrapper and React entry point
+├── bootstrap.js            # Axios and environment configuration
+├── Components/             # Reusable UI library
+│   ├── ui/                 # Shadcn/UI primitive components (Button, Input, etc.)
+│   ├── ToastListener.jsx   # Global handler for Inertia flash notifications
+│   └── ...                 # Form inputs and navigation components
+├── Layouts/                # Persistent shells for different user roles
+│   ├── AdminLayout.jsx     # Navigation for Super Admins
+│   ├── HodLayout.jsx       # Scoped navigation for Department Heads
+│   ├── ApplicantLayout.jsx # Specialized layout for the recruitment wizard
+│   └── GuestLayout.jsx     # Layout for unauthenticated pages (Login/Register)
 ├── lib/
-│   └── utils.js            # Tailwind CSS class merging utilities
-├── Pages/
-│   ├── Admin/              # Management dashboards and job creation
-│   ├── Applicant/          # Application tracking and read-only views
-│   │   └── Steps/          # The 11 individual steps of the recruitment wizard
-│   ├── Auth/               # Authentication views (Login, Register, etc.)
-│   ├── Profile/            # User settings and profile management
-│   └── Dashboard.jsx       # The main entry point for authenticated users
-├── app.jsx                 # Inertia.js entry point and bootstrapper
-└── bootstrap.js            # Axios and environment configuration
+│   └── utils.js            # Tailwind CSS and class-merging utilities
+└── Pages/                  # View components mapped to Laravel routes
+    ├── Admin/              # Global management: Applications, Jobs, and Users
+    ├── Hod/                # Departmental Module: Review and Shortlisting
+    ├── Applicant/          # Candidate Dashboard and the 11-Step Wizard
+    │   └── Steps/          # Individual components for the application stages
+    ├── Auth/               # Authentication views (Password Reset, Login, etc.)
+    ├── Profile/            # Shared Master Profile and security settings
+    ├── Dashboard.jsx       # Dynamic landing page based on authenticated role
+    └── Welcome.jsx         # Public-facing landing page
 ```
 
 ## API Endpoints & Role-Based Logic Flow
@@ -239,7 +273,19 @@ These endpoints manage user access and identity verification using Laravel Breez
 
 ---
 
-### Applicant Recruitment Endpoints (Authenticated)
+### 2. Profile Management Endpoints (Authenticated)
+
+#### User Profile & Security
+
+| Method | Endpoint | Controller Function | Flow |
+|--------|----------|--------------------|------|
+| GET | `/profile` | ProfileController@edit | Render Master Profile / Account Settings |
+| PATCH | `/profile` | ProfileController@update | Update name/image → Role-based redirect |
+| DELETE | `/profile` | ProfileController@destroy | Validate password → Delete user + associated data |
+
+---
+
+### 3. Applicant Recruitment Endpoints (Authenticated)
 
 Handles the 11-step application process and applicant dashboard.
 
@@ -262,61 +308,65 @@ Handles the 11-step application process and applicant dashboard.
 | GET | `/applications/{id}/export/pdf` | RecruitmentController@exportPdf | Generate PDF → Stream download |
 
 ---
+### 4. Administrative Management Endpoints (Admin Only)
 
-### Administrative Management Endpoints (Admin Only)
+Restricted via **`CheckRole` middleware**.
 
-Restricted via `CheckRole` middleware.
-
-#### Admin Dashboard & Users
-
-| Method | Endpoint | Controller Function | Flow |
-|--------|----------|--------------------|------|
-| GET | `/admin/dashboard` | AdminController@index | Aggregate stats → Render dashboard |
-| GET | `/admin/users` | AdminController@users | Fetch all users → Render list |
-
----
-
-#### Job & Application Management
+#### Admin Dashboard, Users & Departments
 
 | Method | Endpoint | Controller Function | Flow |
 |--------|----------|--------------------|------|
-| GET | `/admin/jobs` | RecruitmentController@adminIndex | List all advertisements |
-| POST | `/admin/jobs` | RecruitmentController@store | Validate → Store PDF → Create advertisement |
-| GET | `/admin/applications` | Admin\ApplicationController@index | Fetch all applications |
-| GET | `/admin/applications/{id}` | Admin\ApplicationController@show | Retrieve full application → Render read-only view |
+| GET | `/admin/dashboard` | AdminController@dashboard | Aggregate global stats → Render Super Admin dashboard |
+| GET | `/admin/users` | AdminController@users | Fetch HODs/Applicants → Render management list |
+| GET | `/admin/settings` | AdminController@settings | Fetch departments → Render department management UI |
+| POST | `/admin/departments` | AdminController@storeDepartment | Validate name → Create new academic department |
+| DELETE | `/admin/departments/{id}` | AdminController@destroyDepartment | Remove department → Return to settings |
 
 ---
 
-### Background Logic & Notifications
+#### Job & Global Application Management
 
-These processes are triggered internally (not direct endpoints).
+| Method | Endpoint | Controller Function | Flow |
+|--------|----------|--------------------|------|
+| GET | `/admin/jobs` | RecruitmentController@index | List all active/inactive advertisements |
+| POST | `/admin/jobs` | RecruitmentController@store | Validate → Store PDF → Map Departments/Grades → Publish |
+| GET | `/admin/applications` | Admin\ApplicationController@index | Fetch all submitted applications (cross-department) |
+| GET | `/admin/applications/{id}` | Admin\ApplicationController@show | Retrieve full 11-step dossier → Render read-only view |
+
+---
+
+### 5. Departmental Review Endpoints (HOD Only)
+
+Restricted to users with the **`hod` role**, scoped to their assigned department.
+
+| Method | Endpoint | Controller Function | Flow |
+|--------|----------|--------------------|------|
+| GET | `/hod/dashboard` | AdminController@dashboard | Fetch department-scoped stats → Render HOD dashboard |
+| GET | `/hod/applications` | Admin\ApplicationController@index | List applications for HOD's department only |
+| GET | `/hod/applications/{id}` | Admin\ApplicationController@show | Detailed review of departmental applicant dossier |
+| PATCH | `/hod/applications/{id}` | Admin\ApplicationController@updateStatus | Transition status (*Shortlisted / Rejected*) |
+
+---
+
+### 6. Background Logic & Notifications
+
+These processes are **decoupled from the UI** and triggered by lifecycle events.
 
 #### Mail Services
 
 | Service | File | Flow |
 |--------|------|------|
-| ApplicationSubmitted | `app/Mail/ApplicationSubmitted.php` | Sends email with PDF attachment to applicant |
-| RefereeNotification | `app/Mail/RefereeNotification.php` | Sends email to referees for recommendations |
+| ApplicationSubmitted | `app/Mail/ApplicationSubmitted.php` | Triggered on final submission → Sends confirmation + PDF |
+| RefereeNotification | `app/Mail/RefereeNotification.php` | Triggered on submission → Requests referee recommendations |
 
 ---
 
-#### Storage Logic
+#### Storage & Export Logic
 
-| Type | Storage Path |
-|------|-------------|
-| Profile Images | `storage/app/public/applications/{user_id}/{adv_id}/photos` |
-| Certificates | `storage/app/public/applications/{user_id}/{adv_id}/` |
-
----
-
-### Profile Management Endpoints (Authenticated)
-
-#### User Profile
-
-| Method | Endpoint | Controller Function | Flow |
-|--------|----------|--------------------|------|
-| GET | `/profile` | ProfileController@edit | Render profile page |
-| PATCH | `/profile` | ProfileController@update | Validate → Update user info |
-| DELETE | `/profile` | ProfileController@destroy | Delete user + related applications |
+| Type | Path / Engine | Description |
+|------|--------------|-------------|
+| Profile Images | `storage/app/public/profiles/{user_id}` | Linked to user profile and application dossier |
+| Certificates | `storage/app/public/applications/{user_id}/{adv_id}/` | Scoped storage per user and advertisement |
+| PDF Generation | `dompdf` | Generates consolidated 11-step application for review |
 
 ---
